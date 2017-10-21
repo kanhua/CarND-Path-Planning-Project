@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -159,6 +160,68 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+
+vector<double> transform_coordiates(double global_map_x, double global_map_y,
+						  double global_car_x, double global_car_y, double car_yaw)
+{
+	double local_map_x;
+	double local_map_y;
+
+	car_yaw=deg2rad(car_yaw);
+
+	double dx=global_map_x-global_car_x;
+	double dy=global_map_y-global_car_y;
+
+	local_map_x=cos(car_yaw)*dx+sin(car_yaw)*dy;
+	local_map_y=-sin(car_yaw)*dx+cos(car_yaw)*dy;
+
+	return {local_map_x,local_map_y};
+}
+
+void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double> &map_y,
+			  vector<double> &traj_x,vector<double> &traj_y)
+{
+
+	vector<double> new_map_x=map_x;
+	vector<double> new_map_y=map_y;
+
+	//generate the vector for feeding into spline
+	new_map_x.insert(new_map_x.begin(),start_x);
+	new_map_y.insert(new_map_y.begin(),start_y);
+
+	// determine the required x
+
+	int end_index=new_map_x.size()-1;
+
+	double xd=new_map_x[end_index]-new_map_x[0];
+	double delta_xd=xd/0.5;
+
+	// generate the spline trajectory
+	tk::spline s;
+	s.set_points(new_map_x,new_map_y);
+
+
+	// select the points
+	// select the first 50 points
+	int num_points=50;
+
+	vector<double> new_traj_x(num_points);
+	vector<double> new_traj_y(num_points);
+
+
+	for (int i=0;i<num_points;i++)
+	{
+		new_traj_x[i]=start_x+delta_xd*i;
+		new_traj_y[i]=s(new_traj_x[i]);
+	}
+
+
+}
+
+
+
+
+
 int main() {
   uWS::Hub h;
 
@@ -196,7 +259,8 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+					  &map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -237,6 +301,49 @@ int main() {
 
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
+
+            int next_map_index=NextWaypoint(car_x,car_y,deg2rad(car_yaw),map_waypoints_x,map_waypoints_y);
+
+            // constant speed model
+			//double dist_inc = 0.5;
+			//for(int i = 0; i < 50; i++)
+			//{
+			//	next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+			//	next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+			//}
+
+			int total_future_points=50;
+
+			double ref_point_x=0;
+			double ref_point_y=0;
+			double ref_point_yaw=0;
+
+            //set reference point
+			ref_point_x=car_x;
+            ref_point_y=car_y;
+            ref_point_yaw=car_yaw;
+
+			//Find the closest index
+
+
+
+			//Get the map coordinates of the next few points
+			//Assuimg staying on the second lane at the moment
+
+
+			// Convert the map points to car coordinates
+
+
+			// Find next ponts
+
+
+
+
+
+
+
+
+
 
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
