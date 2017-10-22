@@ -8,6 +8,7 @@ set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
 set(sources src/main.cpp)
+set(testsources src/test_traj.cpp)
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
@@ -21,6 +22,13 @@ link_directories(/usr/local/Cellar/libuv/1.11.0/lib)
 endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
 
 
+include_directories(/usr/local/Cellar/plplot/5.12.0/include/plplot)
+include_directories(/usr/local/Cellar/plplot/5.12.0/share/plplot5.12.0/examples/c++/)
+link_directories(/usr/local/Cellar/plplot/5.12.0/lib/)
+
+
 add_executable(path_planning ${sources})
+add_executable(test_traj ${testsources})
 
 target_link_libraries(path_planning z ssl uv uWS)
+target_link_libraries(test_traj plplotcxx)

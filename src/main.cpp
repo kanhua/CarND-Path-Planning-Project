@@ -9,16 +9,13 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
+#include "util.h"
 
 using namespace std;
 
 // for convenience
 using json = nlohmann::json;
 
-// For converting back and forth between radians and degrees.
-constexpr double pi() { return M_PI; }
-double deg2rad(double x) { return x * pi() / 180; }
-double rad2deg(double x) { return x * 180 / pi(); }
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -84,7 +81,8 @@ int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
 }
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
-vector<double> getFrenet(double x, double y, double theta, const vector<double> &maps_x, const vector<double> &maps_y)
+vector<double> getFrenet(double x, double y, double theta,
+						 const vector<double> &maps_x, const vector<double> &maps_y)
 {
 	int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y);
 
@@ -133,7 +131,8 @@ vector<double> getFrenet(double x, double y, double theta, const vector<double> 
 }
 
 // Transform from Frenet s,d coordinates to Cartesian x,y
-vector<double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y)
+vector<double> getXY(double s, double d, const vector<double> &maps_s,
+					 const vector<double> &maps_x, const vector<double> &maps_y)
 {
 	int prev_wp = -1;
 
@@ -159,67 +158,6 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 	return {x,y};
 
 }
-
-
-vector<double> transform_coordiates(double global_map_x, double global_map_y,
-						  double global_car_x, double global_car_y, double car_yaw)
-{
-	double local_map_x;
-	double local_map_y;
-
-	car_yaw=deg2rad(car_yaw);
-
-	double dx=global_map_x-global_car_x;
-	double dy=global_map_y-global_car_y;
-
-	local_map_x=cos(car_yaw)*dx+sin(car_yaw)*dy;
-	local_map_y=-sin(car_yaw)*dx+cos(car_yaw)*dy;
-
-	return {local_map_x,local_map_y};
-}
-
-void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double> &map_y,
-			  vector<double> &traj_x,vector<double> &traj_y)
-{
-
-	vector<double> new_map_x=map_x;
-	vector<double> new_map_y=map_y;
-
-	//generate the vector for feeding into spline
-	new_map_x.insert(new_map_x.begin(),start_x);
-	new_map_y.insert(new_map_y.begin(),start_y);
-
-	// determine the required x
-
-	int end_index=new_map_x.size()-1;
-
-	double xd=new_map_x[end_index]-new_map_x[0];
-	double delta_xd=xd/0.5;
-
-	// generate the spline trajectory
-	tk::spline s;
-	s.set_points(new_map_x,new_map_y);
-
-
-	// select the points
-	// select the first 50 points
-	int num_points=50;
-
-	vector<double> new_traj_x(num_points);
-	vector<double> new_traj_y(num_points);
-
-
-	for (int i=0;i<num_points;i++)
-	{
-		new_traj_x[i]=start_x+delta_xd*i;
-		new_traj_y[i]=s(new_traj_x[i]);
-	}
-
-
-}
-
-
-
 
 
 int main() {
@@ -287,6 +225,10 @@ int main() {
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
+			cout<<car_x<<endl;
+			cout<<car_y<<endl;
+			cout<<car_yaw<<endl;
+
           	// Previous path data given to the Planner
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
@@ -299,8 +241,8 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+          	vector<double> next_x_vals(50);
+          	vector<double> next_y_vals(50);
 
             int next_map_index=NextWaypoint(car_x,car_y,deg2rad(car_yaw),map_waypoints_x,map_waypoints_y);
 
@@ -325,24 +267,48 @@ int main() {
 
 			//Find the closest index
 
-
+			int closest_index=NextWaypoint(ref_point_x,ref_point_y,ref_point_yaw,map_waypoints_x,map_waypoints_y);
 
 			//Get the map coordinates of the next few points
-			//Assuimg staying on the second lane at the moment
+			//Assuming staying on the second lane at the moment
+
+			int num_next_index=5;
+
+			vector<double> next_map_x(num_next_index);
+			vector<double> next_map_y(num_next_index);
+			for (int i=0;i<num_next_index;i++)
+			{
+				int waypoints_index=closest_index+i;
+
+				next_map_x[i]=map_waypoints_x[waypoints_index]+6*map_waypoints_dx[waypoints_index];
+				next_map_y[i]=map_waypoints_y[waypoints_index]+6*map_waypoints_dy[waypoints_index];
+
+				//convert the map points to car coordinates
+				vector<double> nc=transform_coords(next_map_x[i],next_map_y[i],
+												   ref_point_x,ref_point_y,ref_point_yaw);
+
+				next_map_x[i]=nc[0];
+				next_map_y[i]=nc[1];
+
+			}
+
+			// Find next points
+
+			//fill_spline(next_map_x,next_map_y,next_x_vals,next_y_vals);
+
+			gen_traj(0,0,next_map_x,next_map_y,next_x_vals,next_y_vals);
 
 
-			// Convert the map points to car coordinates
+			// Convert the coordinates back to the map coordinates
 
+			for (int i=0;i<next_x_vals.size();i++)
+			{
+				vector<double> nc=inv_transform_coords(next_x_vals[i],next_y_vals[i],
+				ref_point_x,ref_point_y,ref_point_yaw);
 
-			// Find next ponts
-
-
-
-
-
-
-
-
+				next_x_vals[i]=nc[0];
+				next_y_vals[i]=nc[1];
+			}
 
 
 
