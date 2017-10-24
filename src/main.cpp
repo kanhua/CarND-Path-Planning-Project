@@ -230,8 +230,8 @@ int main() {
 			cout<<car_yaw<<endl;
 
           	// Previous path data given to the Planner
-          	auto previous_path_x = j[1]["previous_path_x"];
-          	auto previous_path_y = j[1]["previous_path_y"];
+          	vector<double> previous_path_x = j[1]["previous_path_x"];
+          	vector<double> previous_path_y = j[1]["previous_path_y"];
           	// Previous path's end s and d values 
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
@@ -246,13 +246,6 @@ int main() {
 
             int next_map_index=NextWaypoint(car_x,car_y,deg2rad(car_yaw),map_waypoints_x,map_waypoints_y);
 
-            // constant speed model
-			//double dist_inc = 0.5;
-			//for(int i = 0; i < 50; i++)
-			//{
-			//	next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-			//	next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
-			//}
 
 			int total_future_points=50;
 
@@ -260,14 +253,32 @@ int main() {
 			double ref_point_y=0;
 			double ref_point_yaw=0;
 
+			double next_path_start_x=0;
+			double next_path_start_y=0;
+
             //set reference point
 			ref_point_x=car_x;
             ref_point_y=car_y;
             ref_point_yaw=car_yaw;
 
+			bool use_car_as_ref=true;
+			if (previous_path_x.size()>0)
+			{
+				use_car_as_ref=false;
+				next_path_start_x=previous_path_x[previous_path_x.size()-1];
+				next_path_start_y=previous_path_y[previous_path_y.size()-1];
+			} else{
+
+				next_path_start_x=car_x;
+				next_path_start_y=car_y;
+
+			}
+
+
 			//Find the closest index
 
-			int closest_index=NextWaypoint(ref_point_x,ref_point_y,ref_point_yaw,map_waypoints_x,map_waypoints_y);
+			int closest_index=NextWaypoint(next_path_start_x,next_path_start_y,
+										   ref_point_yaw,map_waypoints_x,map_waypoints_y);
 
 			//Get the map coordinates of the next few points
 			//Assuming staying on the second lane at the moment
@@ -284,8 +295,8 @@ int main() {
 				next_map_y[i]=map_waypoints_y[waypoints_index]+6*map_waypoints_dy[waypoints_index];
 
 				//convert the map points to car coordinates
-				vector<double> nc=transform_coords(next_map_x[i],next_map_y[i],
-												   ref_point_x,ref_point_y,ref_point_yaw);
+				vector<double> nc= map_to_car_coords(next_map_x[i], next_map_y[i],
+                                                     ref_point_x, ref_point_y, ref_point_yaw);
 
 				next_map_x[i]=nc[0];
 				next_map_y[i]=nc[1];
@@ -294,8 +305,6 @@ int main() {
 
 			// Find next points
 
-			//fill_spline(next_map_x,next_map_y,next_x_vals,next_y_vals);
-
 			gen_traj(0,0,next_map_x,next_map_y,next_x_vals,next_y_vals);
 
 
@@ -303,13 +312,28 @@ int main() {
 
 			for (int i=0;i<next_x_vals.size();i++)
 			{
-				vector<double> nc=inv_transform_coords(next_x_vals[i],next_y_vals[i],
-				ref_point_x,ref_point_y,ref_point_yaw);
+				vector<double> nc= car_to_map_coords(next_x_vals[i], next_y_vals[i],
+                                                     ref_point_x, ref_point_y, ref_point_yaw);
 
 				next_x_vals[i]=nc[0];
 				next_y_vals[i]=nc[1];
 			}
 
+			// find "remain" points in previous path
+			vector<double> previous_left_x;
+			vector<double> previous_left_y;
+
+			for(int i=0;i<previous_path_x.size();i++)
+			{
+				if (previous_path_x[i]>ref_point_x)
+				{
+					previous_left_x.push_back(ref_point_x);
+					previous_left_y.push_back(ref_point_y);
+				}
+			}
+
+			next_x_vals.insert(next_x_vals.begin(),previous_left_x.begin(),previous_left_x.end());
+			next_y_vals.insert(next_y_vals.begin(),previous_left_y.begin(),previous_left_y.end());
 
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds

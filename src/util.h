@@ -19,8 +19,8 @@ double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
 
 
-vector<double> transform_coords(double global_map_x, double global_map_y,
-                                double global_car_x, double global_car_y, double car_yaw)
+vector<double> map_to_car_coords(double global_map_x, double global_map_y,
+                                 double global_car_x, double global_car_y, double car_yaw)
 {
     double local_map_x;
     double local_map_y;
@@ -36,8 +36,8 @@ vector<double> transform_coords(double global_map_x, double global_map_y,
     return {local_map_x,local_map_y};
 }
 
-vector<double> inv_transform_coords(double local_map_x, double local_map_y,
-                                    double global_car_x, double global_car_y, double car_yaw)
+vector<double> car_to_map_coords(double local_map_x, double local_map_y,
+                                 double global_car_x, double global_car_y, double car_yaw)
 {
 
     double global_map_x;
@@ -93,24 +93,81 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y,
 
 }
 
+void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
+                   vector<double> &traj_x,vector<double> &traj_y)
+{
+
+    // x-coordinate of the target point
+    double max_x_shift=30;
+
+    tk::spline s;
+    s.set_points(map_x,map_y);
+
+    double start_x=map_x[0];
+    double start_y=map_y[0];
+
+    double max_end_x=start_x+max_x_shift;
+    double max_end_y=s(max_end_x);
+
+    double dx=max_end_x;
+    double dy=max_end_y-start_y;
+
+    double delta_d=sqrt(dx*dx+dy*dy);
+
+    double grid_dx=0.25;
+
+    cout << "delta_d:"<<delta_d<<endl;
+
+    double N=delta_d/grid_dx; // required number of segments
+    cout <<"N:"<<N<<endl;
+
+    vector<double> new_traj_x;
+    vector<double> new_traj_y;
+
+    for (int i=0;i<50;i++)
+    {
+        double x=start_x+(dx/N)*(i+1);
+        double y=s(x);
+
+        new_traj_x.push_back(x);
+        new_traj_y.push_back(y);
+    }
+
+    traj_x=new_traj_x;
+    traj_y=new_traj_y;
+
+}
+
 void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double> &map_y,
               vector<double> &traj_x,vector<double> &traj_y)
 {
 
-    vector<double> new_map_x=map_x;
-    vector<double> new_map_y=map_y;
+    vector<double> new_map_x;
+    vector<double> new_map_y;
 
-    //generate the vector for feeding into spline
-    new_map_x.insert(new_map_x.begin(),start_x);
-    new_map_y.insert(new_map_y.begin(),start_y);
+
+    new_map_x.push_back(start_x);
+    new_map_y.push_back(start_y);
+
+    int start_index=0;
+    while(map_x[start_index]< start_x)
+    {
+        start_index++;
+    }
+
+    for (int i=start_index;i<map_x.size();i++)
+    {
+        new_map_x.push_back(map_x[i]);
+        new_map_y.push_back(map_y[i]);
+    }
 
     cout << "map:value"<<endl;
     for (int i=0;i<new_map_x.size();i++)
     {
-        cout << new_map_x[i]<<endl;
+        cout << new_map_x[i]<<","<<new_map_y[i]<<endl;
     }
 
-    fill_spline(new_map_x,new_map_y,traj_x,traj_y);
+    fill_spline_2(new_map_x,new_map_y,traj_x,traj_y);
 
 }
 

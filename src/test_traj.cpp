@@ -109,7 +109,7 @@ int main(){
         plot_map_y[i]=map_waypoints_y[start_index+i];
     }
 
-    //plot2d(plot_map_x,plot_map_y,"global.png");
+    plot2d(plot_map_x,plot_map_y,"global.png");
 
     double start_map_x=909.48;
     double start_map_y=1128.67;
@@ -117,30 +117,30 @@ int main(){
 
     for(int i=0;i<plot_index_range;i++)
     {
-        vector<double> nc=transform_coords(plot_map_x[i],plot_map_y[i],
-        start_map_x,start_map_y,start_yaw);
+        vector<double> nc= map_to_car_coords(plot_map_x[i], plot_map_y[i],
+                                             start_map_x, start_map_y, start_yaw);
         plot_map_x[i]=nc[0];
         plot_map_y[i]=nc[1];
     }
 
-    //plot2d(plot_map_x,plot_map_y,"local.png");
+    plot2d(plot_map_x,plot_map_y,"local.png");
 
     //try spline
 
     vector<double> fitted_x;
     vector<double> fitted_y;
 
-    //fill_spline(plot_map_x,plot_map_y,fitted_x,fitted_y);
+    fill_spline_2(plot_map_x,plot_map_y,fitted_x,fitted_y);
 
-    gen_traj(0,0,plot_map_x,plot_map_y,fitted_x,fitted_y);
+    //gen_traj(0,0,plot_map_x,plot_map_y,fitted_x,fitted_y);
 
 
     plot2d(fitted_x,fitted_y,"fitted.png");
 
     for(int i=0;i<fitted_x.size();i++)
     {
-        vector<double> nc=inv_transform_coords(fitted_x[i],fitted_y[i],
-                                           start_map_x,start_map_y,start_yaw);
+        vector<double> nc= car_to_map_coords(fitted_x[i], fitted_y[i],
+                                             start_map_x, start_map_y, start_yaw);
         fitted_x[i]=nc[0];
         fitted_y[i]=nc[1];
     }
