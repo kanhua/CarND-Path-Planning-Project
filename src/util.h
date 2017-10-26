@@ -114,7 +114,7 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
 
     double delta_d=sqrt(dx*dx+dy*dy);
 
-    double grid_dx=0.25;
+    double grid_dx=0.4;
 
     cout << "delta_d:"<<delta_d<<endl;
 
@@ -124,7 +124,7 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
     vector<double> new_traj_x;
     vector<double> new_traj_y;
 
-    for (int i=0;i<50;i++)
+    for (int i=0;i<60;i++)
     {
         double x=start_x+(dx/N)*(i+1);
         double y=s(x);
@@ -145,7 +145,6 @@ void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double
     vector<double> new_map_x;
     vector<double> new_map_y;
 
-
     //new_map_x.push_back(start_x);
     //new_map_y.push_back(start_y);
 
@@ -161,13 +160,27 @@ void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double
         new_map_y.push_back(map_y[i]);
     }
 
-    cout << "map:value"<<endl;
-    for (int i=0;i<new_map_x.size();i++)
-    {
-        cout << new_map_x[i]<<","<<new_map_y[i]<<endl;
-    }
 
     fill_spline_2(new_map_x,new_map_y,traj_x,traj_y);
+
+}
+
+void print_map(const vector<double> &map_x, const vector<double> &map_y, int number)
+{
+    int number_to_print;
+    if (number==-1)
+    {
+        number_to_print=map_x.size();
+    }
+    else{
+        number_to_print=number;
+    }
+
+    cout << "map:value"<<endl;
+    for (int i=0;i<number_to_print;i++)
+    {
+        cout << map_x[i] <<","<< map_y[i]<<endl;
+    }
 
 }
 

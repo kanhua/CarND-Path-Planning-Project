@@ -59,7 +59,7 @@ int ClosestWaypoint(double x, double y, const vector<double> &maps_x, const vect
 
 }
 
-int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x, const vector<double> &maps_y)
+int NextWaypoint(double x, double y, double theta_in_rad, const vector<double> &maps_x, const vector<double> &maps_y)
 {
 
 	int closestWaypoint = ClosestWaypoint(x,y,maps_x,maps_y);
@@ -69,7 +69,7 @@ int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
 
 	double heading = atan2( (map_y-y),(map_x-x) );
 
-	double angle = abs(theta-heading);
+	double angle = abs(theta_in_rad-heading);
 
 	if(angle > pi()/4)
 	{
@@ -241,17 +241,10 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals(50);
-          	vector<double> next_y_vals(50);
-
-            int next_map_index=NextWaypoint(car_x,car_y,deg2rad(car_yaw),map_waypoints_x,map_waypoints_y);
-
+          	vector<double> next_x_vals;
+          	vector<double> next_y_vals;
 
 			int total_future_points=50;
-
-			double ref_point_x=0;
-			double ref_point_y=0;
-			double ref_point_yaw=0;
 
 			double next_path_start_x=0;
 			double next_path_start_y=0;
@@ -259,15 +252,12 @@ int main() {
             double next_path_start2_x=0;
             double next_path_start2_y=0;
 
-            //set reference point
-			ref_point_x=car_x;
-            ref_point_y=car_y;
-            ref_point_yaw=car_yaw;
-
 			cout << "previous path size: "<< previous_path_x.size() <<endl;
+
+			// Set the starting point of the next generated path
 			if (previous_path_x.size()>3)
 			{
-
+				//Use the end points of previous_path_x
 				next_path_start2_x=previous_path_x[previous_path_x.size()-1];
 				next_path_start2_y=previous_path_y[previous_path_y.size()-1];
 
@@ -276,6 +266,7 @@ int main() {
 
             } else{
 
+				//Use the current coordinates of the car
                 next_path_start2_x=car_x;
                 next_path_start2_y=car_y;
 
@@ -288,7 +279,8 @@ int main() {
 			//Find the closest index
 
 			int closest_index=NextWaypoint(next_path_start2_x,next_path_start2_y,
-										   ref_point_yaw,map_waypoints_x,map_waypoints_y);
+										   deg2rad(car_yaw),map_waypoints_x,map_waypoints_y);
+
 
 			//Get the map coordinates of the next few points
 			//Assuming staying on the second lane at the moment
@@ -305,7 +297,7 @@ int main() {
 			next_map_y.push_back(next_path_start2_y);
 
 
-
+            // Construct the array for spline fitting
 			for (int i=0;i<num_next_index;i++)
 			{
 				int waypoints_index=closest_index+i;
@@ -319,16 +311,18 @@ int main() {
 			{
 				//convert the map points to car coordinates
 				vector<double> nc= map_to_car_coords(next_map_x[i], next_map_y[i],
-													 ref_point_x, ref_point_y, ref_point_yaw);
+													 car_x, car_y, car_yaw);
 
 				next_map_x[i]=nc[0];
 				next_map_y[i]=nc[1];
 
 			}
 
-			// Find next points
+			//print_map(next_map_x,next_map_y);
 
-			gen_traj(0,0,next_map_x,next_map_y,next_x_vals,next_y_vals);
+            // Find next points
+
+			fill_spline_2(next_map_x,next_map_y,next_x_vals,next_y_vals);
 
 
 			// Convert the coordinates back to the map coordinates
@@ -336,7 +330,7 @@ int main() {
 			for (int i=0;i<next_x_vals.size();i++)
 			{
 				vector<double> nc= car_to_map_coords(next_x_vals[i], next_y_vals[i],
-                                                     ref_point_x, ref_point_y, ref_point_yaw);
+                                                     car_x, car_y, car_yaw);
 
 				next_x_vals[i]=nc[0];
 				next_y_vals[i]=nc[1];
@@ -360,7 +354,7 @@ int main() {
 			}
 
 
-
+            print_map(nnext_x,nnext_y,5);
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = nnext_x;
