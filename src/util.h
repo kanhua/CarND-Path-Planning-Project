@@ -103,8 +103,8 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
     tk::spline s;
     s.set_points(map_x,map_y);
 
-    double start_x=map_x[0];
-    double start_y=map_y[0];
+    double start_x=map_x[1];
+    double start_y=map_y[1];
 
     double max_end_x=start_x+max_x_shift;
     double max_end_y=s(max_end_x);
@@ -146,14 +146,14 @@ void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double
     vector<double> new_map_y;
 
 
-    new_map_x.push_back(start_x);
-    new_map_y.push_back(start_y);
+    //new_map_x.push_back(start_x);
+    //new_map_y.push_back(start_y);
 
     int start_index=0;
-    while(map_x[start_index]< start_x)
-    {
-        start_index++;
-    }
+    //while(map_x[start_index]< start_x)
+    //{
+    //    start_index++;
+    //}
 
     for (int i=start_index;i<map_x.size();i++)
     {

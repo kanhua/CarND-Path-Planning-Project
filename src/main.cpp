@@ -256,47 +256,70 @@ int main() {
 			double next_path_start_x=0;
 			double next_path_start_y=0;
 
+            double next_path_start2_x=0;
+            double next_path_start2_y=0;
+
             //set reference point
 			ref_point_x=car_x;
             ref_point_y=car_y;
             ref_point_yaw=car_yaw;
 
-			bool use_car_as_ref=true;
-			if (previous_path_x.size()>0)
+			cout << "previous path size: "<< previous_path_x.size() <<endl;
+			if (previous_path_x.size()>3)
 			{
-				use_car_as_ref=false;
-				next_path_start_x=previous_path_x[previous_path_x.size()-1];
-				next_path_start_y=previous_path_y[previous_path_y.size()-1];
-			} else{
 
-				next_path_start_x=car_x;
-				next_path_start_y=car_y;
+				next_path_start2_x=previous_path_x[previous_path_x.size()-1];
+				next_path_start2_y=previous_path_y[previous_path_y.size()-1];
+
+				next_path_start2_x=previous_path_x[previous_path_x.size()-2];
+				next_path_start2_y=previous_path_y[previous_path_y.size()-2];
+
+            } else{
+
+                next_path_start2_x=car_x;
+                next_path_start2_y=car_y;
+
+                next_path_start_x=car_x-cos(deg2rad(car_yaw));
+                next_path_start_y=car_y-sin(deg2rad(car_yaw));
 
 			}
 
 
 			//Find the closest index
 
-			int closest_index=NextWaypoint(next_path_start_x,next_path_start_y,
+			int closest_index=NextWaypoint(next_path_start2_x,next_path_start2_y,
 										   ref_point_yaw,map_waypoints_x,map_waypoints_y);
 
 			//Get the map coordinates of the next few points
 			//Assuming staying on the second lane at the moment
 
-			int num_next_index=5;
+			int num_next_index=3;
 
-			vector<double> next_map_x(num_next_index);
-			vector<double> next_map_y(num_next_index);
+			vector<double> next_map_x;
+			vector<double> next_map_y;
+
+			next_map_x.push_back(next_path_start_x);
+			next_map_x.push_back(next_path_start2_x);
+
+			next_map_y.push_back(next_path_start_y);
+			next_map_y.push_back(next_path_start2_y);
+
+
+
 			for (int i=0;i<num_next_index;i++)
 			{
 				int waypoints_index=closest_index+i;
 
-				next_map_x[i]=map_waypoints_x[waypoints_index]+6*map_waypoints_dx[waypoints_index];
-				next_map_y[i]=map_waypoints_y[waypoints_index]+6*map_waypoints_dy[waypoints_index];
+				next_map_x.push_back(map_waypoints_x[waypoints_index]+6*map_waypoints_dx[waypoints_index]);
+				next_map_y.push_back(map_waypoints_y[waypoints_index]+6*map_waypoints_dy[waypoints_index]);
 
+			}
+
+			for (int i=0;i<next_map_x.size();i++)
+			{
 				//convert the map points to car coordinates
 				vector<double> nc= map_to_car_coords(next_map_x[i], next_map_y[i],
-                                                     ref_point_x, ref_point_y, ref_point_yaw);
+													 ref_point_x, ref_point_y, ref_point_yaw);
 
 				next_map_x[i]=nc[0];
 				next_map_y[i]=nc[1];
@@ -319,26 +342,29 @@ int main() {
 				next_y_vals[i]=nc[1];
 			}
 
-			// find "remain" points in previous path
-			vector<double> previous_left_x;
-			vector<double> previous_left_y;
-
-			for(int i=0;i<previous_path_x.size();i++)
+			if (previous_path_x.size()>2)
 			{
-				if (previous_path_x[i]>ref_point_x)
-				{
-					previous_left_x.push_back(ref_point_x);
-					previous_left_y.push_back(ref_point_y);
-				}
+				next_x_vals.insert(next_x_vals.begin(),previous_path_x.begin(),previous_path_x.end());
+				next_y_vals.insert(next_y_vals.begin(),previous_path_y.begin(),previous_path_y.end());
 			}
 
-			next_x_vals.insert(next_x_vals.begin(),previous_left_x.begin(),previous_left_x.end());
-			next_y_vals.insert(next_y_vals.begin(),previous_left_y.begin(),previous_left_y.end());
+			// quick dirty try
+
+			vector<double> nnext_x;
+			vector<double> nnext_y;
+
+			for (int i=0;i<60;i++)
+			{
+				nnext_x.push_back(next_x_vals[i]);
+				nnext_y.push_back(next_y_vals[i]);
+			}
+
+
 
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = next_x_vals;
-          	msgJson["next_y"] = next_y_vals;
+          	msgJson["next_x"] = nnext_x;
+          	msgJson["next_y"] = nnext_y;
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
