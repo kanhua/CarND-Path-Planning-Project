@@ -25,8 +25,6 @@ vector<double> map_to_car_coords(double global_map_x, double global_map_y,
     double local_map_x;
     double local_map_y;
 
-    car_yaw=deg2rad(car_yaw);
-
     double dx=global_map_x-global_car_x;
     double dy=global_map_y-global_car_y;
 
@@ -42,8 +40,6 @@ vector<double> car_to_map_coords(double local_map_x, double local_map_y,
 
     double global_map_x;
     double global_map_y;
-
-    car_yaw=deg2rad(car_yaw);
 
     global_map_x=cos(car_yaw)*local_map_x-sin(car_yaw)*local_map_y+global_car_x;
     global_map_y=sin(car_yaw)*local_map_x+cos(car_yaw)*local_map_y+global_car_y;
@@ -124,7 +120,7 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
     vector<double> new_traj_x;
     vector<double> new_traj_y;
 
-    for (int i=0;i<60;i++)
+    for (int i=0;i<30;i++)
     {
         double x=start_x+(dx/N)*(i+1);
         double y=s(x);

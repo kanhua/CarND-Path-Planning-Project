@@ -227,7 +227,6 @@ int main() {
 
 			cout<<car_x<<endl;
 			cout<<car_y<<endl;
-			cout<<car_yaw<<endl;
 
           	// Previous path data given to the Planner
           	vector<double> previous_path_x = j[1]["previous_path_x"];
@@ -254,15 +253,27 @@ int main() {
 
 			cout << "previous path size: "<< previous_path_x.size() <<endl;
 
-			// Set the starting point of the next generated path
+
+            double ref_x=0;
+            double ref_y=0;
+            double ref_yaw=0;
+
+            double car_yaw_rad=deg2rad(car_yaw);
+
+            // Set the starting point of the next generated path
 			if (previous_path_x.size()>3)
 			{
 				//Use the end points of previous_path_x
+				next_path_start_x=previous_path_x[previous_path_x.size()-2];
+				next_path_start_y=previous_path_y[previous_path_y.size()-2];
+
 				next_path_start2_x=previous_path_x[previous_path_x.size()-1];
 				next_path_start2_y=previous_path_y[previous_path_y.size()-1];
 
-				next_path_start2_x=previous_path_x[previous_path_x.size()-2];
-				next_path_start2_y=previous_path_y[previous_path_y.size()-2];
+                ref_x=next_path_start2_x;
+                ref_y=next_path_start2_y;
+                ref_yaw=atan2(next_path_start2_y-next_path_start_y,next_path_start2_x-next_path_start_x);
+
 
             } else{
 
@@ -273,13 +284,17 @@ int main() {
                 next_path_start_x=car_x-cos(deg2rad(car_yaw));
                 next_path_start_y=car_y-sin(deg2rad(car_yaw));
 
+                ref_x=car_x;
+                ref_y=car_y;
+                ref_yaw=car_yaw;
+
 			}
 
 
 			//Find the closest index
 
-			int closest_index=NextWaypoint(next_path_start2_x,next_path_start2_y,
-										   deg2rad(car_yaw),map_waypoints_x,map_waypoints_y);
+			int closest_index=NextWaypoint(ref_x,ref_y,
+										   ref_yaw,map_waypoints_x,map_waypoints_y);
 
 
 			//Get the map coordinates of the next few points
@@ -311,14 +326,15 @@ int main() {
 			{
 				//convert the map points to car coordinates
 				vector<double> nc= map_to_car_coords(next_map_x[i], next_map_y[i],
-													 car_x, car_y, car_yaw);
+													 car_x, car_y, car_yaw_rad);
 
 				next_map_x[i]=nc[0];
 				next_map_y[i]=nc[1];
 
 			}
 
-			//print_map(next_map_x,next_map_y);
+			cout << "print map:" <<endl;
+            print_map(next_map_x,next_map_y,-1);
 
             // Find next points
 
@@ -330,13 +346,13 @@ int main() {
 			for (int i=0;i<next_x_vals.size();i++)
 			{
 				vector<double> nc= car_to_map_coords(next_x_vals[i], next_y_vals[i],
-                                                     car_x, car_y, car_yaw);
+                                                     car_x, car_y, car_yaw_rad);
 
 				next_x_vals[i]=nc[0];
 				next_y_vals[i]=nc[1];
 			}
 
-			if (previous_path_x.size()>2)
+			if (previous_path_x.size()>3)
 			{
 				next_x_vals.insert(next_x_vals.begin(),previous_path_x.begin(),previous_path_x.end());
 				next_y_vals.insert(next_y_vals.begin(),previous_path_y.begin(),previous_path_y.end());
@@ -347,7 +363,7 @@ int main() {
 			vector<double> nnext_x;
 			vector<double> nnext_y;
 
-			for (int i=0;i<60;i++)
+			for (int i=0;i<30;i++)
 			{
 				nnext_x.push_back(next_x_vals[i]);
 				nnext_y.push_back(next_y_vals[i]);
