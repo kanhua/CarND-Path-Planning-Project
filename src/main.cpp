@@ -260,6 +260,12 @@ int main() {
 
             double car_yaw_rad=deg2rad(car_yaw);
 
+            // The lane number that the car stays on. The lane next to the center line is zero.
+            int lane_number=0;
+
+            const int lane_width=4; // the width of the lane
+
+
             // Set the starting point of the next generated path
 			if (previous_path_x.size()>3)
 			{
@@ -317,8 +323,10 @@ int main() {
 			{
 				int waypoints_index=closest_index+i;
 
-				next_map_x.push_back(map_waypoints_x[waypoints_index]+6*map_waypoints_dx[waypoints_index]);
-				next_map_y.push_back(map_waypoints_y[waypoints_index]+6*map_waypoints_dy[waypoints_index]);
+				next_map_x.push_back(map_waypoints_x[waypoints_index]+
+                                             ((lane_number+0.5)*lane_width)*map_waypoints_dx[waypoints_index]);
+				next_map_y.push_back(map_waypoints_y[waypoints_index]+
+                                             ((lane_number+0.5)*lane_width)*map_waypoints_dy[waypoints_index]);
 
 			}
 
@@ -338,7 +346,8 @@ int main() {
 
             // Find next points
 
-			fill_spline_2(next_map_x,next_map_y,next_x_vals,next_y_vals);
+			int points_to_generate=total_future_points-previous_path_x.size();
+            fill_spline_2(next_map_x,next_map_y,next_x_vals,next_y_vals,points_to_generate);
 
 
 			// Convert the coordinates back to the map coordinates
@@ -358,23 +367,14 @@ int main() {
 				next_y_vals.insert(next_y_vals.begin(),previous_path_y.begin(),previous_path_y.end());
 			}
 
-			// quick dirty try
-
-			vector<double> nnext_x;
-			vector<double> nnext_y;
-
-			for (int i=0;i<30;i++)
-			{
-				nnext_x.push_back(next_x_vals[i]);
-				nnext_y.push_back(next_y_vals[i]);
-			}
 
 
-            print_map(nnext_x,nnext_y,5);
+
+            print_map(next_x_vals,next_y_vals,5);
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = nnext_x;
-          	msgJson["next_y"] = nnext_y;
+          	msgJson["next_x"] = next_x_vals;
+          	msgJson["next_y"] = next_y_vals;
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 

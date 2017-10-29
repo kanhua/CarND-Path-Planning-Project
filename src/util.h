@@ -90,7 +90,7 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y,
 }
 
 void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
-                   vector<double> &traj_x,vector<double> &traj_y)
+                   vector<double> &traj_x,vector<double> &traj_y,int points_to_generate)
 {
 
     // x-coordinate of the target point
@@ -120,7 +120,7 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
     vector<double> new_traj_x;
     vector<double> new_traj_y;
 
-    for (int i=0;i<30;i++)
+    for (int i=0;i<points_to_generate;i++)
     {
         double x=start_x+(dx/N)*(i+1);
         double y=s(x);
@@ -157,7 +157,7 @@ void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double
     }
 
 
-    fill_spline_2(new_map_x,new_map_y,traj_x,traj_y);
+    fill_spline_2(new_map_x,new_map_y,traj_x,traj_y,0);
 
 }
 
