@@ -28,7 +28,7 @@ link_directories(/usr/local/Cellar/plplot/5.12.0/lib/)
 
 
 add_executable(path_planning ${sources})
-add_executable(test_traj ${testsources})
+#add_executable(test_traj ${testsources})
 
 target_link_libraries(path_planning z ssl uv uWS)
-target_link_libraries(test_traj plplotcxx)
+#target_link_libraries(test_traj plplotcxx)
