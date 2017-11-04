@@ -90,11 +90,16 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y,
 }
 
 void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
-                   vector<double> &traj_x,vector<double> &traj_y,int points_to_generate)
+                   vector<double> &traj_x,vector<double> &traj_y,
+                   int points_to_generate,double desired_speed)
 {
 
     // x-coordinate of the target point
     double max_x_shift=30;
+
+    const double read_in_interval=0.02; // time interval between each reading of the simulator
+    //double desired_speed=20; // desired speed in m/s
+
 
     tk::spline s;
     s.set_points(map_x,map_y);
@@ -110,7 +115,7 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
 
     double delta_d=sqrt(dx*dx+dy*dy);
 
-    double grid_dx=0.4;
+    double grid_dx=desired_speed*read_in_interval;
 
     cout << "delta_d:"<<delta_d<<endl;
 
@@ -157,7 +162,7 @@ void gen_traj(double start_x,double start_y,vector<double> &map_x, vector<double
     }
 
 
-    fill_spline_2(new_map_x,new_map_y,traj_x,traj_y,0);
+    fill_spline_2(new_map_x,new_map_y,traj_x,traj_y,0,10);
 
 }
 

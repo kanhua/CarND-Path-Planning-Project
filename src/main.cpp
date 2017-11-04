@@ -5,8 +5,8 @@
 #include <iostream>
 #include <thread>
 #include <vector>
-#include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include "Eigen-3.3/Eigen/Core"
 #include "json.hpp"
 #include "spline.h"
 #include "util.h"
@@ -258,16 +258,51 @@ int main() {
             double ref_y=0;
             double ref_yaw=0;
 
+            double ref_vel=20;
+
             double car_yaw_rad=deg2rad(car_yaw);
 
-            // The lane number that the car stays on. The lane next to the center line is zero.
-            int lane_number=0;
 
             const int lane_width=4; // the width of the lane
 
 
+            // Tell which lane that the car currently stays
+			// The lane number that the car stays on. The lane next to the center line is zero.
+			int lane_number=floor(car_d/lane_width);
+
+
+
+            // Sense other cars on the road
+            for (int i=0;i<sensor_fusion.size();i++)
+            {
+                double neighbor_car_d=sensor_fusion[i][6];
+                if (abs(car_d-neighbor_car_d)<2)
+                {
+                    double neighbor_car_s=sensor_fusion[i][5];
+                    if((neighbor_car_s-car_s)>0 && (neighbor_car_s-car_s)<30)
+                    {
+                        if (lane_number==0)
+                        {
+                            lane_number=1;
+
+                        }
+                        else if(lane_number==1)
+                        {
+                            lane_number=0;
+                        } else
+                        {
+                            lane_number=1;
+                        }
+
+
+                    }
+                }
+            }
+
+
+
             // Set the starting point of the next generated path
-			if (previous_path_x.size()>3)
+			if (previous_path_x.size()>2)
 			{
 				//Use the end points of previous_path_x
 				next_path_start_x=previous_path_x[previous_path_x.size()-2];
@@ -347,7 +382,7 @@ int main() {
             // Find next points
 
 			int points_to_generate=total_future_points-previous_path_x.size();
-            fill_spline_2(next_map_x,next_map_y,next_x_vals,next_y_vals,points_to_generate);
+            fill_spline_2(next_map_x,next_map_y,next_x_vals,next_y_vals,points_to_generate,ref_vel);
 
 
 			// Convert the coordinates back to the map coordinates
@@ -361,7 +396,7 @@ int main() {
 				next_y_vals[i]=nc[1];
 			}
 
-			if (previous_path_x.size()>3)
+			if (previous_path_x.size()>2)
 			{
 				next_x_vals.insert(next_x_vals.begin(),previous_path_x.begin(),previous_path_x.end());
 				next_y_vals.insert(next_y_vals.begin(),previous_path_y.begin(),previous_path_y.end());
