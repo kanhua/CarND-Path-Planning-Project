@@ -179,9 +179,8 @@ vector<double> JMT(vector< double> start, vector <double> end, double T)
 
 }
 
-void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
-				   vector<double> &traj_x, vector<double> &traj_y,
-				   int points_to_generate, double desired_speed) {
+void fill_spline_2(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
+                   int points_to_generate, double desired_speed, double acceleration, double car_speed) {
 
 	// x-coordinate of the target point
 	double max_x_shift = 30;
@@ -199,26 +198,39 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y,
 	double max_end_x = start_x + max_x_shift;
 	double max_end_y = s(max_end_x);
 
-	double dx = max_end_x;
-	double dy = max_end_y - start_y;
-
-	double delta_d = sqrt(dx * dx + dy * dy);
-
-	double grid_dx = desired_speed * read_in_interval;
-
-	cout << "delta_d:" << delta_d << endl;
-
-	double N = delta_d / grid_dx; // required number of segments
-	cout << "N:" << N << endl;
 
 	vector<double> new_traj_x;
 	vector<double> new_traj_y;
 
-	for (int i = 0; i < points_to_generate; i++) {
-		double x = start_x + (dx / N) * (i + 1);
-		double y = s(x);
+    double current_x = start_x;
 
-		new_traj_x.push_back(x);
+    double dx = map_x[1] - map_x[0];
+    double dy = map_y[1] - map_y[0];
+
+
+    double inst_speed = sqrt(dx * dx + dy * dy) / read_in_interval;
+
+    if (car_speed < 0.1) {
+        inst_speed = car_speed;
+    } else {
+        inst_speed = sqrt(dx * dx + dy * dy) / read_in_interval;
+    }
+
+
+    double theta = atan2(dy, dx);
+
+	for (int i = 0; i < points_to_generate; i++) {
+        //current_x += (dx / N);
+        if (inst_speed < desired_speed) {
+            inst_speed += acceleration * read_in_interval;
+        } else {
+            inst_speed = desired_speed;
+        }
+
+        current_x += inst_speed * cos(theta) * read_in_interval;
+        double y = s(current_x);
+
+        new_traj_x.push_back(current_x);
 		new_traj_y.push_back(y);
 	}
 
@@ -272,16 +284,12 @@ void print_map(const vector<double> &map_x, const vector<double> &map_y, int num
 }
 
 
-void gen_traj_from_spline(double car_x, double car_y,
-						  double car_s, double car_d, double car_yaw,
-						  const vector<double> &previous_path_x,
-						  const vector<double> &previous_path_y,
-						  const vector<vector<double>> &sensor_fusion,
-						  const vector<double> &map_waypoints_x,
-						  const vector<double> &map_waypoints_y,
-						  const vector<double> &map_waypoints_dx,
-						  const vector<double> &map_waypoints_dy,
-						  vector<double> &next_x_vals, vector<double> &next_y_vals) {
+void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d, double car_speed, double car_yaw,
+                          const vector<double> &previous_path_x, const vector<double> &previous_path_y,
+                          const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
+                          const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
+                          const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
+                          vector<double> &next_y_vals) {
 
 	next_x_vals.clear();
 	next_y_vals.clear();
@@ -414,7 +422,7 @@ void gen_traj_from_spline(double car_x, double car_y,
 	// Find next points
 
 	int points_to_generate = total_future_points - previous_path_x.size();
-	fill_spline_2(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, ref_vel);
+    fill_spline_2(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, ref_vel, 5, car_speed);
 
 
 	// Convert the coordinates back to the map coordinates

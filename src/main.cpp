@@ -119,15 +119,12 @@ int main() {
             vector<double> next_x_vals;
             vector<double> next_y_vals;
 
-            gen_traj_from_spline(car_x, car_y, car_s, car_d, car_yaw,
-                                 previous_path_x, previous_path_y,
-                                 sensor_fusion, map_waypoints_x, map_waypoints_y, map_waypoints_dx,
-                                 map_waypoints_dy, next_x_vals, next_y_vals);
+            gen_traj_from_spline(car_x, car_y, car_s, car_d, car_speed, car_yaw, previous_path_x, previous_path_y,
+                                 sensor_fusion, map_waypoints_x,
+                                 map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals);
 
 
-
-
-            print_map(next_x_vals,next_y_vals,5);
+            print_map(next_x_vals, next_y_vals, 10);
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
