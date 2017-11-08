@@ -315,26 +315,31 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 	int lane_number = floor(car_d / lane_width);
 
 
-	// Sense other cars on the road
-	for (int i = 0; i < sensor_fusion.size(); i++) {
-		double neighbor_car_d = sensor_fusion[i][6];
-		if (abs(car_d - neighbor_car_d) < 2) {
-			double neighbor_car_s = sensor_fusion[i][5];
-			if ((neighbor_car_s - car_s) > 0 && (neighbor_car_s - car_s) < 30) {
-				if (lane_number == 0) {
-					lane_number = 1;
+    vector<double> lane_cost(3);
 
-				} else if (lane_number == 1) {
-					lane_number = 0;
-				} else {
-					lane_number = 1;
-				}
+    for (int i = 0; i < 3; i++) {
+        lane_cost[i] = 0;
+    }
 
+    // Sense other cars on the road
+    for (int i = 0; i < sensor_fusion.size(); i++) {
+        double neighbor_car_d = sensor_fusion[i][6];
+        int on_lane = floor(neighbor_car_d / lane_width);
 
-			}
-		}
-	}
+        double neighbor_car_s = sensor_fusion[i][5];
+        double car_dist = neighbor_car_s - car_s;
 
+        double cost = 1 / car_dist;
+        if (lane_cost[on_lane] < cost) {
+            lane_cost[on_lane] = cost;
+        }
+
+    }
+
+    auto result_lane = min_element(lane_cost.begin(), lane_cost.end());
+
+    // find the lane number with the lowest cost
+    lane_number = (result_lane - lane_cost.begin());
 
 
 	// Set the starting point of the next generated path
