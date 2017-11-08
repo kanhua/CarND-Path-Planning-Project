@@ -124,7 +124,7 @@ int main() {
                                  map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals);
 
 
-            print_map(next_x_vals, next_y_vals, 10);
+            //print_map(next_x_vals, next_y_vals, 10);
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;

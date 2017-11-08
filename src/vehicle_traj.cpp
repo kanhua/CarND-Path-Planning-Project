@@ -192,23 +192,17 @@ void fill_spline_2(vector<double> &map_x, vector<double> &map_y, vector<double> 
 	tk::spline s;
 	s.set_points(map_x, map_y);
 
-	double start_x = map_x[1];
-	double start_y = map_y[1];
-
-	double max_end_x = start_x + max_x_shift;
-	double max_end_y = s(max_end_x);
 
 
 	vector<double> new_traj_x;
 	vector<double> new_traj_y;
 
-    double current_x = start_x;
+    double current_x = map_x[1];
 
     double dx = map_x[1] - map_x[0];
     double dy = map_y[1] - map_y[0];
 
-
-    double inst_speed = sqrt(dx * dx + dy * dy) / read_in_interval;
+    double inst_speed = 0; // instaneous speed
 
     if (car_speed < 0.1) {
         inst_speed = car_speed;
@@ -319,7 +313,6 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 	// Tell which lane that the car currently stays
 	// The lane number that the car stays on. The lane next to the center line is zero.
 	int lane_number = floor(car_d / lane_width);
-
 
 
 	// Sense other cars on the road
