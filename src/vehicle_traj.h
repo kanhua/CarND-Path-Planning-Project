@@ -48,3 +48,6 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
                           const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
                           const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
                           vector<double> &next_y_vals);
+
+vector<double> getXY(double s, double d, const vector<double> &maps_s,
+                     const vector<double> &maps_x, const vector<double> &maps_y);
