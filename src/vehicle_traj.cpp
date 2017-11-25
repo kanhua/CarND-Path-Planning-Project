@@ -6,8 +6,9 @@
 #include "vehicle_traj.h"
 
 
-vector<double>
-get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number);
+void
+get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number,
+              vector<double> &lane_cost);
 
 constexpr double pi() { return 3.14159265359; }
 
@@ -405,33 +406,8 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
     assert(prev_lane_number < 3 && prev_lane_number >= 0);
 
     vector<double> lane_cost(3);
-    for (int i = 0; i < 3; i++) {
-        lane_cost[i] = 0;
-    }
-
-
-    // Sense other cars on the road
-    for (int i = 0; i < sensor_fusion.size(); i++) {
-        double neighbor_car_d = sensor_fusion[i][6];
-        int on_lane = floor(neighbor_car_d / lane_width);
-
-        double neighbor_car_s = sensor_fusion[i][5];
-        double car_dist = neighbor_car_s - car_s;
-
-        double cost = 1 / car_dist;
-        if (lane_cost[on_lane] < cost) {
-            lane_cost[on_lane] = cost;
-        }
-
-    }
-
-    // "incumbent" advantage
-    lane_cost[prev_lane_number] -= 0.01;
-
-    cout << "lane cost:" << endl;
-    for (int i = 0; i < 3; i++) {
-        cout << lane_cost[i] << endl;
-    }
+	
+    get_lane_cost(car_s, sensor_fusion, lane_width, prev_lane_number, lane_cost);
 
     auto result_lane = min_element(lane_cost.begin(), lane_cost.end());
 
@@ -543,10 +519,10 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 
 }
 
-vector<double>
-get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number) {
+void
+get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number,
+              vector<double> &lane_cost) {
 
-    vector<double> lane_cost(3);
     for (int i = 0; i < 3; i++) {
         lane_cost[i] = 0;
     }
@@ -575,7 +551,6 @@ get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const i
         cout << lane_cost[i] << endl;
     }
 
-    return lane_cost;
 }
 
 
