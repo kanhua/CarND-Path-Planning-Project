@@ -6,6 +6,9 @@
 #include "vehicle_traj.h"
 
 
+vector<double>
+get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number);
+
 constexpr double pi() { return 3.14159265359; }
 
 double deg2rad(double x) { return x * pi() / 180; }
@@ -383,7 +386,6 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 
 	cout << "previous path size: " << previous_path_x.size() << endl;
 
-
 	double ref_x = 0;
 	double ref_y = 0;
 	double ref_yaw = 0;
@@ -398,13 +400,15 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 	// Tell which lane that the car currently stays
 	// The lane number that the car stays on. The lane next to the center line is zero.
 	int prev_lane_number = floor(car_d / lane_width);
+    cout << "lane num:" << prev_lane_number << endl;
 
+    assert(prev_lane_number < 3 && prev_lane_number >= 0);
 
     vector<double> lane_cost(3);
-
     for (int i = 0; i < 3; i++) {
         lane_cost[i] = 0;
     }
+
 
     // Sense other cars on the road
     for (int i = 0; i < sensor_fusion.size(); i++) {
@@ -421,10 +425,21 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 
     }
 
+    // "incumbent" advantage
+    lane_cost[prev_lane_number] -= 0.01;
+
+    cout << "lane cost:" << endl;
+    for (int i = 0; i < 3; i++) {
+        cout << lane_cost[i] << endl;
+    }
+
     auto result_lane = min_element(lane_cost.begin(), lane_cost.end());
 
     // find the lane number with the lowest cost
 	int lane_number = (result_lane - lane_cost.begin());
+
+    cout << "selected lane number:" << lane_number << endl;
+    assert(lane_number >= 0 && lane_number < 3);
 
 
 	// Set the starting point of the next generated path
@@ -462,6 +477,7 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 	int closest_index = NextWaypoint(ref_x, ref_y,
 									 ref_yaw, map_waypoints_x, map_waypoints_y);
 
+    // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
 	if (lane_number != prev_lane_number) {
 		closest_index++;
 	}
@@ -503,11 +519,8 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 
 	}
 
-	cout << "print map:" << endl;
-	print_map(next_map_x, next_map_y, -1);
 
 	// Find next points
-
 	int points_to_generate = total_future_points - previous_path_x.size();
     fill_spline_2(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, ref_vel, 5, car_speed);
 
@@ -528,6 +541,41 @@ void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d
 	}
 
 
+}
+
+vector<double>
+get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number) {
+
+    vector<double> lane_cost(3);
+    for (int i = 0; i < 3; i++) {
+        lane_cost[i] = 0;
+    }
+
+
+    // Sense other cars on the road
+    for (int i = 0; i < sensor_fusion.size(); i++) {
+        double neighbor_car_d = sensor_fusion[i][6];
+        int on_lane = floor(neighbor_car_d / lane_width);
+
+        double neighbor_car_s = sensor_fusion[i][5];
+        double car_dist = neighbor_car_s - car_s;
+
+        double cost = 1 / car_dist;
+        if (lane_cost[on_lane] < cost) {
+            lane_cost[on_lane] = cost;
+        }
+
+    }
+
+    // "incumbent" advantage
+    lane_cost[prev_lane_number] -= 0.01;
+
+    cout << "lane cost:" << endl;
+    for (int i = 0; i < 3; i++) {
+        cout << lane_cost[i] << endl;
+    }
+
+    return lane_cost;
 }
 
 
