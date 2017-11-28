@@ -100,17 +100,14 @@ int main() {
                     current_car_state.car_s = j[1]["s"];
                     current_car_state.car_d = j[1]["d"];
                     current_car_state.car_yaw = j[1]["yaw"];
-                    current_car_state.car_speed = j[1]["speed"];
+                    current_car_state.car_speed = mph2mps(j[1]["speed"]);
+
+                    cout << "car speed:" << current_car_state.car_speed << endl;
 
                     // Previous path data given to the Planner
-                    current_car_state.previous_path_x.insert(current_car_state.previous_path_x.begin(),
-                                                             j[1]["previous_path_x"].begin(),
-                                                             j[1]["previous_path_x"].end());
+                    vector<double> previous_path_x = j[1]["previous_path_x"];
 
-
-                    current_car_state.previous_path_y.insert(current_car_state.previous_path_y.begin(),
-                                                             j[1]["previous_path_y"].begin(),
-                                                             j[1]["previous_path_y"].end());
+                    vector<double> previous_path_y = j[1]["previous_path_y"];
 
                     // Previous path's end s and d values
                     double end_path_s = j[1]["end_path_s"];
@@ -124,7 +121,7 @@ int main() {
                     vector<double> next_x_vals;
                     vector<double> next_y_vals;
 
-                    gen_traj_from_spline(current_car_state,
+                    gen_traj_from_spline(current_car_state, previous_path_x, previous_path_y,
                                          sensor_fusion, map_waypoints_x,
                                          map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals);
 

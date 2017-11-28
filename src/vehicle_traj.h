@@ -23,6 +23,10 @@ double deg2rad(double x);
 
 double rad2deg(double x);
 
+double mph2mps(double x);
+
+double mps2mph(double x);
+
 struct map_data {
     vector<double> map_waypoints_x;
     vector<double> map_waypoints_y;
@@ -33,15 +37,12 @@ struct map_data {
 };
 
 struct car_state {
-    double car_x;
-    double car_y;
-    double car_s;
-    double car_d;
-    double car_yaw;
-    double car_speed;
-    vector<double> previous_path_x;
-    vector<double> previous_path_y;
-
+    double car_x = 0;
+    double car_y = 0;
+    double car_s = 0;
+    double car_d = 0;
+    double car_yaw = 0;
+    double car_speed = 0;
 };
 
 
@@ -64,6 +65,8 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &t
 void print_map(const vector<double> &map_x, const vector<double> &map_y, int number);
 
 void gen_traj_from_spline(car_state &cstate,
+                          vector<double> &previous_path_x,
+                          vector<double> &previous_path_y,
                           const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
                           const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
                           const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,

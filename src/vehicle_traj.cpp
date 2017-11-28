@@ -16,6 +16,10 @@ double deg2rad(double x) { return x * pi() / 180; }
 
 double rad2deg(double x) { return x * 180 / pi(); }
 
+double mph2mps(double x) { return x * 0.44704; }
+
+double mps2mph(double x) { return x * 2.23694; }
+
 double distance(double x1, double y1, double x2, double y2) {
     return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
@@ -184,8 +188,6 @@ vector<double> JMT(vector<double> start, vector<double> end, double T) {
 void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
                  int points_to_generate, double desired_speed, double acceleration, double car_speed) {
 
-    // x-coordinate of the target point
-    double max_x_shift = 30;
 
     const double read_in_interval = 0.02; // time interval between each reading of the simulator
     //double desired_speed=20; // desired speed in m/s
@@ -215,7 +217,7 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &t
     double theta = atan2(dy, dx);
 
     for (int i = 0; i < points_to_generate; i++) {
-        //current_x += (dx / N);
+
         if (inst_speed < desired_speed) {
             inst_speed += acceleration * read_in_interval;
         } else {
@@ -365,6 +367,8 @@ void print_map(const vector<double> &map_x, const vector<double> &map_y, int num
 
 
 void gen_traj_from_spline(car_state &cstate,
+                          vector<double> &previous_path_x,
+                          vector<double> &previous_path_y,
                           const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
                           const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
                           const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
@@ -381,13 +385,13 @@ void gen_traj_from_spline(car_state &cstate,
     double next_path_start2_x = 0;
     double next_path_start2_y = 0;
 
-    cout << "previous path size: " << cstate.previous_path_x.size() << endl;
+    cout << "previous path size: " << previous_path_x.size() << endl;
 
     double ref_x = 0;
     double ref_y = 0;
     double ref_yaw = 0;
 
-    double ref_vel = 20;
+    double ref_vel = 40;
 
     double car_yaw_rad = deg2rad(cstate.car_yaw);
 
@@ -414,17 +418,17 @@ void gen_traj_from_spline(car_state &cstate,
     assert(lane_number >= 0 && lane_number < 3);
 
 
-    int prev_points = cstate.previous_path_x.size();
-    assert(cstate.previous_path_x.size() == cstate.previous_path_y.size());
+    int prev_points = previous_path_x.size();
+    assert(previous_path_x.size() == previous_path_y.size());
 
     // Set the starting point of the next generated path
-    if (cstate.previous_path_x.size() > 2) {
+    if (previous_path_x.size() > 2) {
         //Use the end points of previous_path_x
-        next_path_start_x = cstate.previous_path_x[prev_points - 2];
-        next_path_start_y = cstate.previous_path_y[prev_points - 2];
+        next_path_start_x = previous_path_x[prev_points - 2];
+        next_path_start_y = previous_path_y[prev_points - 2];
 
-        next_path_start2_x = cstate.previous_path_x[prev_points - 1];
-        next_path_start2_y = cstate.previous_path_y[prev_points - 1];
+        next_path_start2_x = previous_path_x[prev_points - 1];
+        next_path_start2_y = previous_path_y[prev_points - 1];
 
         ref_x = next_path_start2_x;
         ref_y = next_path_start2_y;
@@ -511,12 +515,13 @@ void gen_traj_from_spline(car_state &cstate,
     }
 
     if (prev_points > 2) {
-        next_x_vals.insert(next_x_vals.begin(), cstate.previous_path_x.begin(), cstate.previous_path_x.end());
-        next_y_vals.insert(next_y_vals.begin(), cstate.previous_path_y.begin(), cstate.previous_path_y.end());
+        next_x_vals.insert(next_x_vals.begin(), previous_path_x.begin(), previous_path_x.end());
+        next_y_vals.insert(next_y_vals.begin(), previous_path_y.begin(), previous_path_y.end());
     }
     //TODO did not deal with cases where previous_path_x.size() <2
+    cout << "total next points:" << next_x_vals.size() << endl;
 
-
+    print_map(next_x_vals, next_y_vals, 10);
 }
 
 void
@@ -529,6 +534,7 @@ get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const i
 
 
     // Sense other cars on the road
+    cout << "reading sensor fusion data" << endl;
     for (int i = 0; i < sensor_fusion.size(); i++) {
         double neighbor_car_d = sensor_fusion[i][6];
         int on_lane = floor(neighbor_car_d / lane_width);
