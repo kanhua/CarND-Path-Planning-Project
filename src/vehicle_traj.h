@@ -23,6 +23,27 @@ double deg2rad(double x);
 
 double rad2deg(double x);
 
+struct map_data {
+    vector<double> map_waypoints_x;
+    vector<double> map_waypoints_y;
+    vector<double> map_waypoints_s;
+    vector<double> map_waypoints_dx;
+    vector<double> map_waypoints_dy;
+
+};
+
+struct car_state {
+    double car_x;
+    double car_y;
+    double car_s;
+    double car_d;
+    double car_yaw;
+    double car_speed;
+    vector<double> previous_path_x;
+    vector<double> previous_path_y;
+
+};
+
 
 vector<double> map_to_car_coords(double global_map_x, double global_map_y,
                                  double global_car_x, double global_car_y, double car_yaw);
@@ -36,14 +57,13 @@ vector<double> car_to_map_coords(double local_map_x, double local_map_y,
 vector<double> JMT(vector< double> start, vector <double> end, double T);
 
 
-void fill_spline_2(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
-                   int points_to_generate, double desired_speed, double acceleration, double car_speed);
+void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
+                 int points_to_generate, double desired_speed, double acceleration, double car_speed);
 
 
 void print_map(const vector<double> &map_x, const vector<double> &map_y, int number);
 
-void gen_traj_from_spline(double car_x, double car_y, double car_s, double car_d, double car_speed, double car_yaw,
-                          const vector<double> &previous_path_x, const vector<double> &previous_path_y,
+void gen_traj_from_spline(car_state &cstate,
                           const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
                           const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
                           const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
