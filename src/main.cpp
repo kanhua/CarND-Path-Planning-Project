@@ -99,7 +99,7 @@ int main() {
                     current_car_state.car_y = j[1]["y"];
                     current_car_state.car_s = j[1]["s"];
                     current_car_state.car_d = j[1]["d"];
-                    current_car_state.car_yaw = j[1]["yaw"];
+                    current_car_state.car_yaw = deg2rad(j[1]["yaw"]);
                     current_car_state.car_speed = mph2mps(j[1]["speed"]);
 
                     cout << "car speed:" << current_car_state.car_speed << endl;
