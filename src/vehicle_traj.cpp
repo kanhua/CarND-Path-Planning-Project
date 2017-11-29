@@ -370,6 +370,65 @@ void print_map(const vector<double> &map_x, const vector<double> &map_y, int num
 }
 
 
+double eval_state(double delta_t,
+                  const vector<double> &next_x_val,
+                  const vector<double> &next_y_val,
+                  const vector<vector<double>> &sensor_fusion, const vector<double> &map_x,
+                  const vector<double> &map_y) {
+    const double lane_width = 4;
+    const double simulator_interval = 0.02;
+    vector<double> lane_cost(3);
+
+    int path_index = floor(simulator_interval * delta_t);
+    assert(path_index > 0);
+    double car_next_x = next_x_val[path_index];
+    double car_next_y = next_y_val[path_index];
+
+    double car_theta = atan2(next_x_val[path_index] - next_x_val[path_index - 1],
+                             next_y_val[path_index] - next_y_val[path_index - 1]);
+
+    vector<double> car_nc = getFrenet(car_next_x, car_next_y, car_theta, map_x, map_y);
+    double car_next_s = car_nc[0];
+    double car_next_d = car_nc[1];
+
+    int car_lane = floor(car_next_d / lane_width);
+
+
+    for (int i = 0; i < sensor_fusion.size(); i++) {
+        double neighbor_car_d = sensor_fusion[i][6];
+        double neighbor_car_s = sensor_fusion[i][5];
+
+        double neighbor_car_x = sensor_fusion[i][1];
+        double neighbor_car_y = sensor_fusion[i][2];
+
+        double vx = sensor_fusion[i][3];
+        double vy = sensor_fusion[i][4];
+        double neighbor_car_theta = atan2(vx, vy);
+
+        vector<double> nc = getFrenet(neighbor_car_x + delta_t * vx, neighbor_car_y + delta_t * vy,
+                                      neighbor_car_theta, map_x, map_y);
+
+        double neighbor_car_next_s = nc[0];
+        double neighbor_car_next_d = nc[1];
+
+
+        int on_lane = floor(neighbor_car_next_d / lane_width);
+
+        double car_dist = neighbor_car_next_s - car_next_s;
+
+        double cost = 1 / car_dist;
+        if (lane_cost[on_lane] < cost && cost > 0) {
+            //only consider the cars in front
+            lane_cost[on_lane] = cost;
+        }
+
+    }
+
+    return lane_cost[car_lane];
+
+}
+
+
 void gen_traj_from_spline_x(car_state &cstate,
                             int lane_number,
                             vector<double> &previous_path_x,
@@ -380,6 +439,8 @@ void gen_traj_from_spline_x(car_state &cstate,
                             vector<double> &next_y_vals) {
     next_x_vals.clear();
     next_y_vals.clear();
+
+    double acceleration = 6;
 
     int total_future_points = 50;
 
@@ -395,7 +456,7 @@ void gen_traj_from_spline_x(car_state &cstate,
     double ref_y = 0;
     double ref_yaw = 0;
 
-    double ref_vel = 20;
+    double desired_speed = 20;
 
 
     const int lane_width = 4; // the width of the lane
@@ -404,8 +465,11 @@ void gen_traj_from_spline_x(car_state &cstate,
     // The lane number that the car stays on. The lane next to the center line is zero.
     int prev_lane_number = floor(cstate.car_d / lane_width);
 
-    assert(lane_number >= 0 && lane_number < 3);
+    assert(lane_number >= -1 && lane_number < 3);
 
+    if (lane_number == -1) {
+        lane_number = prev_lane_number;
+    }
 
     int prev_points = previous_path_x.size();
     assert(previous_path_x.size() == previous_path_y.size());
@@ -482,7 +546,9 @@ void gen_traj_from_spline_x(car_state &cstate,
 
     // Find next points
     int points_to_generate = total_future_points - prev_points;
-    fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, ref_vel, 6, cstate.car_speed);
+
+    fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate,
+                desired_speed, acceleration, cstate.car_speed);
 
 
     // Convert the coordinates back to the map coordinates
@@ -535,7 +601,7 @@ void gen_traj_from_spline(car_state &cstate,
 
     cout << "total next points:" << next_x_vals.size() << endl;
 
-    print_map(next_x_vals, next_y_vals, 10);
+    //print_map(next_x_vals, next_y_vals, 10);
 }
 
 void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals) {
