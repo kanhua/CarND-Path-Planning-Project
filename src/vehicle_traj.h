@@ -62,7 +62,8 @@ vector<double> JMT(vector< double> start, vector <double> end, double T);
 
 
 void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
-                 int points_to_generate, double desired_speed, double acceleration, double car_speed);
+                 int points_to_generate, double desired_speed, double acceleration, double car_speed,
+                 double read_in_interval);
 
 
 void print_map(const vector<double> &map_x, const vector<double> &map_y, int number);

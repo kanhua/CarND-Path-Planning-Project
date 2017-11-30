@@ -188,10 +188,11 @@ vector<double> JMT(vector<double> start, vector<double> end, double T) {
 }
 
 void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
-                 int points_to_generate, double desired_speed, double acceleration, double car_speed) {
+                 int points_to_generate, double desired_speed, double acceleration, double car_speed,
+                 double read_in_interval) {
 
 
-    const double read_in_interval = 0.02; // time interval between each reading of the simulator
+    // time interval between each reading of the simulator
     //double desired_speed=20; // desired speed in m/s
 
 
@@ -388,7 +389,8 @@ double eval_state(double delta_t,
     const double simulator_interval = 0.02;
     vector<double> lane_cost(3);
 
-    int path_index = floor(delta_t / simulator_interval);
+    //int path_index = floor(delta_t / simulator_interval);
+    int path_index = next_x_val.size() - 1;
 
     assert(path_index > 0 && path_index < next_x_val.size());
     double car_next_x = next_x_val[path_index];
@@ -402,7 +404,7 @@ double eval_state(double delta_t,
     double car_next_d = car_nc[1];
 
     int car_lane = floor(car_next_d / lane_width);
-    assert (car_lane > 0 && car_lane < 4);
+    assert (car_lane >= 0 && car_lane < 4);
 
 
     for (int i = 0; i < sensor_fusion.size(); i++) {
@@ -440,11 +442,12 @@ double eval_state(double delta_t,
 }
 
 
-void gen_traj_from_spline_x(car_state &cstate, int state_number, const vector<double> &previous_path_x,
+void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vector<double> &previous_path_x,
                             const vector<double> &previous_path_y, const vector<vector<double>> &sensor_fusion,
                             const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
                             const vector<double> &map_waypoints_dx, const vector<double> &map_waypoints_dy,
-                            vector<double> &next_x_vals, vector<double> &next_y_vals, int total_future_points) {
+                            vector<double> &next_x_vals, vector<double> &next_y_vals, int total_future_points,
+                            double read_in_interval) {
 
     assert(state_number >= 0 && state_number <= 4);
     next_x_vals.clear();
@@ -470,7 +473,7 @@ void gen_traj_from_spline_x(car_state &cstate, int state_number, const vector<do
     //Get the map coordinates of the next few points
     //Assuming staying on the second lane at the moment
 
-    int num_next_index = 7;
+    int num_next_index = 4;
 
 
     const int lane_width = 4; // the width of the lane
@@ -564,11 +567,11 @@ void gen_traj_from_spline_x(car_state &cstate, int state_number, const vector<do
 
     if (state_number == 4) {
         //deacceleration
-        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate,
-                    0, -acceleration, cstate.car_speed);
+        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, 0.1, -acceleration,
+                    cstate.car_speed, read_in_interval);
     } else {
-        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate,
-                    desired_speed, acceleration, cstate.car_speed);
+        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, desired_speed, acceleration,
+                    cstate.car_speed, read_in_interval);
     }
 
 
@@ -599,19 +602,21 @@ void gen_traj_from_spline(car_state &cstate,
     assert(prev_lane_number < 3 && prev_lane_number >= 0);
 
 
-    vector<int> state_to_try = {3, 4};
+    vector<int> state_to_try = {4, 0, 1, 2};
     int num_states = state_to_try.size();
     vector<double> state_cost(num_states);
-    state_cost[0] = -0.005;
+    state_cost[2] = -0.01;
 
     for (int i = 0; i < num_states; i++) {
         vector<double> test_next_x;
         vector<double> test_next_y;
+
         gen_traj_from_spline_x(cstate, state_to_try[i], previous_path_x, previous_path_y, sensor_fusion,
                                map_waypoints_x,
-                               map_waypoints_y, map_waypoints_dx, map_waypoints_dy, test_next_x, test_next_y, 80);
+                               map_waypoints_y, map_waypoints_dx, map_waypoints_dy, test_next_x, test_next_y, 50, 0.2);
 
-        state_cost[i] += eval_state(1.5, test_next_x, test_next_y, sensor_fusion, map_waypoints_x, map_waypoints_y);
+
+        state_cost[i] += eval_state(2.0, test_next_x, test_next_y, sensor_fusion, map_waypoints_x, map_waypoints_y);
 
     }
 
@@ -635,7 +640,7 @@ void gen_traj_from_spline(car_state &cstate,
 
     gen_traj_from_spline_x(cstate, state_to_try[min_state_index], previous_path_x, previous_path_y, sensor_fusion,
                            map_waypoints_x,
-                           map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50);
+                           map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50, 0.02);
 
     //print_map(next_x_vals, next_y_vals, 10);
 }
