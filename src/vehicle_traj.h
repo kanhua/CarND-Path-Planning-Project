@@ -53,6 +53,9 @@ vector<double> map_to_car_coords(double global_map_x, double global_map_y,
 vector<double> car_to_map_coords(double local_map_x, double local_map_y,
                                  double global_car_x, double global_car_y, double car_yaw);
 
+void
+get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number,
+              vector<double> &lane_cost);
 
 
 vector<double> JMT(vector< double> start, vector <double> end, double T);
