@@ -7,11 +7,6 @@
 
 
 
-
-void map_to_car_coords_array(const car_state &cstate, vector<double> &next_map_x, vector<double> &next_map_y);
-
-void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals);
-
 constexpr double pi() { return 3.14159265359; }
 
 double deg2rad(double x) { return x * pi() / 180; }
@@ -212,7 +207,7 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &t
     double inst_speed = 0; // instaneous speed
 
     if (car_speed < 0.1) {
-        inst_speed = car_speed;
+        inst_speed = car_speed + 0.05;
     } else {
         inst_speed = sqrt(dx * dx + dy * dy) / read_in_interval;
     }
@@ -239,11 +234,6 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &t
 
         // check that the car does not go backwards
         assert(inst_speed > -0.5);
-
-        if (abs(inst_speed) < 0.1) {
-            inst_speed = 0.1;
-        }
-
 
         current_x += inst_speed * cos(theta) * read_in_interval;
         double y = s(current_x);
@@ -390,8 +380,8 @@ double eval_state(double delta_t,
                   const vector<double> &next_y_val,
                   const vector<vector<double>> &sensor_fusion, const vector<double> &map_x,
                   const vector<double> &map_y) {
+
     const double lane_width = 4;
-    const double simulator_interval = 0.02;
     vector<double> lane_cost(3);
 
     //int path_index = floor(delta_t / simulator_interval);
@@ -614,17 +604,22 @@ void gen_traj_from_spline(car_state &cstate,
     vector<double> state_cost(num_states);
     state_cost[0] = -0.01;
 
+    const int test_future_points = 10;
+    const double test_time_interval = 0.1;
+    const double delta_t = test_future_points * test_time_interval;
 
     for (int i = 0; i < num_states; i++) {
 
         vector<double> test_next_x;
         vector<double> test_next_y;
-        gen_traj_from_spline_x(cstate, state_to_try[i], previous_path_x, previous_path_y, sensor_fusion,
+        gen_traj_from_spline_x(cstate, state_to_try[i], {}, {}, sensor_fusion,
                                map_waypoints_x,
-                               map_waypoints_y, map_waypoints_dx, map_waypoints_dy, test_next_x, test_next_y, 80, 0.07);
+                               map_waypoints_y, map_waypoints_dx,
+                               map_waypoints_dy, test_next_x, test_next_y, test_future_points, test_time_interval);
 
 
-        state_cost[i] += eval_state(2.0, test_next_x, test_next_y, sensor_fusion, map_waypoints_x, map_waypoints_y);
+        state_cost[i] += eval_state(delta_t, test_next_x, test_next_y,
+                                    sensor_fusion, map_waypoints_x, map_waypoints_y);
 
         vector<double>().swap(test_next_x);
         vector<double>().swap(test_next_y);
@@ -649,6 +644,7 @@ void gen_traj_from_spline(car_state &cstate,
         min_state_index=0;
     }*/
 
+    //TODO magic number 50 and 0.02
     gen_traj_from_spline_x(cstate, state_to_try[min_state_index], previous_path_x, previous_path_y, sensor_fusion,
                            map_waypoints_x,
                            map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50, 0.02);

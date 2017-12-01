@@ -87,3 +87,7 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
 vector<double> getFrenet(double x, double y, double theta,
                          const vector<double> &maps_x, const vector<double> &maps_y);
+
+void map_to_car_coords_array(const car_state &cstate, vector<double> &next_map_x, vector<double> &next_map_y);
+
+void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals);
