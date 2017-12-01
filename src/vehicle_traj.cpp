@@ -61,7 +61,8 @@ int NextWaypoint(double x, double y, double theta_in_rad, const vector<double> &
         closestWaypoint++;
     }
 
-    return closestWaypoint;
+    // Use modulus to deal with boundary
+    return closestWaypoint % maps_x.size();
 
 }
 
@@ -540,8 +541,6 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
     }
 
 
-
-
     vector<double> next_map_x;
     vector<double> next_map_y;
 
@@ -554,7 +553,8 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
 
     // Construct the array for spline fitting
     for (int i = 0; i < num_next_index; i++) {
-        int waypoints_index = closest_index + i;
+        int waypoints_index = (closest_index + i) % map_waypoints_x.size();
+        assert(waypoints_index < map_waypoints_x.size());
 
         next_map_x.push_back(map_waypoints_x[waypoints_index] +
                              ((next_lane_number + 0.5) * lane_width) * map_waypoints_dx[waypoints_index]);
@@ -571,7 +571,7 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
 
     if (state_number == 4) {
         //deacceleration
-        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, 0.1, -acceleration,
+        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, 1, -acceleration,
                     cstate.car_speed, read_in_interval);
     } else {
         fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, desired_speed, acceleration,
@@ -588,6 +588,9 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
         next_y_vals.insert(next_y_vals.begin(), previous_path_y.begin(), previous_path_y.end());
     }
 
+    vector<double>().swap(next_map_x);
+    vector<double>().swap(next_map_y);
+
 }
 
 
@@ -601,7 +604,7 @@ void gen_traj_from_spline(car_state &cstate,
 
     const int lane_width = 4;
     int prev_lane_number = floor(cstate.car_d / lane_width);
-    cout << "lane num:" << prev_lane_number << endl;
+    //cout << "lane num:" << prev_lane_number << endl;
 
     assert(prev_lane_number < 3 && prev_lane_number >= 0);
 
@@ -609,10 +612,7 @@ void gen_traj_from_spline(car_state &cstate,
     const vector<int> state_to_try = {3, 4};
     int num_states = state_to_try.size();
     vector<double> state_cost(num_states);
-    state_cost[0] = -0.005;
-
-
-
+    state_cost[0] = -0.01;
 
 
     for (int i = 0; i < num_states; i++) {
@@ -621,7 +621,7 @@ void gen_traj_from_spline(car_state &cstate,
         vector<double> test_next_y;
         gen_traj_from_spline_x(cstate, state_to_try[i], previous_path_x, previous_path_y, sensor_fusion,
                                map_waypoints_x,
-                               map_waypoints_y, map_waypoints_dx, map_waypoints_dy, test_next_x, test_next_y, 80, 0.05);
+                               map_waypoints_y, map_waypoints_dx, map_waypoints_dy, test_next_x, test_next_y, 80, 0.07);
 
 
         state_cost[i] += eval_state(2.0, test_next_x, test_next_y, sensor_fusion, map_waypoints_x, map_waypoints_y);
@@ -632,9 +632,9 @@ void gen_traj_from_spline(car_state &cstate,
     }
 
     //print out state cost:
-    for (int i = 0; i < num_states; i++) {
+    /*for (int i = 0; i < num_states; i++) {
         cout << "state" << state_to_try[i] << ":" << state_cost[i] << endl;
-    }
+    }*/
 
     auto result_state = min_element(state_cost.begin(), state_cost.end());
     int min_state_index = result_state - state_cost.begin();

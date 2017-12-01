@@ -102,7 +102,7 @@ int main() {
                     current_car_state.car_yaw = deg2rad(j[1]["yaw"]);
                     current_car_state.car_speed = mph2mps(j[1]["speed"]);
 
-                    cout << "car speed:" << current_car_state.car_speed << endl;
+                    //cout << "car speed:" << current_car_state.car_speed << endl;
 
                     // Previous path data given to the Planner
                     vector<double> previous_path_x = j[1]["previous_path_x"];
@@ -135,12 +135,13 @@ int main() {
                     msgJson["next_x"] = next_x_vals;
                     msgJson["next_y"] = next_y_vals;
 
-                    //vector<double>().swap(next_x_vals);
-                    //vector<double>().swap(next_y_vals);
+                    vector<double>().swap(next_x_vals);
+                    vector<double>().swap(next_y_vals);
 
                     auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
-                    //this_thread::sleep_for(chrono::milliseconds(1000));
+                    // probably have to active this line to avoid the memory error
+                    this_thread::sleep_for(chrono::milliseconds(100));
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
                 }

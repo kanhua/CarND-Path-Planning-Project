@@ -82,3 +82,8 @@ void fill_jmt(vector<double> &map_x, vector<double> &map_y, vector<double> &traj
 
 vector<double> getXY(double s, double d, const vector<double> &maps_s,
                      const vector<double> &maps_x, const vector<double> &maps_y);
+
+
+// Transform from Cartesian x,y coordinates to Frenet s,d coordinates
+vector<double> getFrenet(double x, double y, double theta,
+                         const vector<double> &maps_x, const vector<double> &maps_y);
