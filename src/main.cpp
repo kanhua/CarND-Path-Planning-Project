@@ -135,6 +135,9 @@ int main() {
                     msgJson["next_x"] = next_x_vals;
                     msgJson["next_y"] = next_y_vals;
 
+                    //vector<double>().swap(next_x_vals);
+                    //vector<double>().swap(next_y_vals);
+
                     auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
                     //this_thread::sleep_for(chrono::milliseconds(1000));
