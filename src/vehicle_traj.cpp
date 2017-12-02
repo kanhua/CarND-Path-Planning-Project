@@ -21,6 +21,20 @@ double distance(double x1, double y1, double x2, double y2) {
     return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
 
+double getmax(double x1, double x2) {
+    if (x1 > x2) {
+        return x1;
+    } else {
+        return x2;
+    }
+}
+
+double getmin(double x1, double x2) {
+    if (x1 < x2) {
+        return x1;
+    } else return x2;
+}
+
 int ClosestWaypoint(double x, double y, const vector<double> &maps_x, const vector<double> &maps_y) {
 
     double closestLen = 100000; //large number
@@ -375,14 +389,11 @@ void print_map(const vector<double> &map_x, const vector<double> &map_y, int num
 }
 
 
-double eval_state(double delta_t,
-                  const vector<double> &next_x_val,
-                  const vector<double> &next_y_val,
-                  const vector<vector<double>> &sensor_fusion, const vector<double> &map_x,
-                  const vector<double> &map_y) {
+double eval_state(double delta_t, const vector<double> &next_x_val, const vector<double> &next_y_val,
+                  const vector<vector<double>> &sensor_fusion, const vector<double> &map_x, const vector<double> &map_y,
+                  const car_state &cstate) {
 
     const double lane_width = 4;
-    vector<double> lane_cost(3);
 
     //int path_index = floor(delta_t / simulator_interval);
     int path_index = next_x_val.size() - 1;
@@ -401,7 +412,7 @@ double eval_state(double delta_t,
     int car_lane = floor(car_next_d / lane_width);
     assert (car_lane >= 0 && car_lane < 4);
 
-
+    double cost = 0;
     for (int i = 0; i < sensor_fusion.size(); i++) {
         double neighbor_car_d = sensor_fusion[i][6];
         double neighbor_car_s = sensor_fusion[i][5];
@@ -420,19 +431,27 @@ double eval_state(double delta_t,
         double neighbor_car_next_d = nc[1];
 
 
-        int on_lane = floor(neighbor_car_next_d / lane_width);
+        int neighbor_car_lane = floor(neighbor_car_next_d / lane_width);
 
-        double car_dist = neighbor_car_next_s - car_next_s;
+        if (car_lane == neighbor_car_lane) {
+            double future_car_dist = neighbor_car_next_s - car_next_s;
+            double current_car_dist = neighbor_car_s - car_next_s;
 
-        double cost = 1 / car_dist;
-        if (lane_cost[on_lane] < cost && cost > 0) {
-            //only consider the cars in front
-            lane_cost[on_lane] = cost;
+            double current_cost = 1 / future_car_dist;
+            if (current_cost > cost) cost = current_cost;
+
         }
+
+
+        /*
+        if (lane_cost[neighbor_car_lane] < cost && cost > 0) {
+            //only consider the cars in front
+            lane_cost[neighbor_car_lane] = cost;
+        }*/
 
     }
 
-    return lane_cost[car_lane];
+    return cost;
 
 }
 
@@ -601,11 +620,12 @@ void gen_traj_from_spline(car_state &cstate,
 
     const vector<int> state_to_try = {3, 4};
     int num_states = state_to_try.size();
-    vector<double> state_cost(num_states);
-    state_cost[0] = -0.01;
+    //vector<double> state_cost(num_states);
+    //state_cost[0] = -0.01;
+    vector<double> state_cost = {-0.01, 0};
 
     const int test_future_points = 10;
-    const double test_time_interval = 0.1;
+    const double test_time_interval = 0.3;
     const double delta_t = test_future_points * test_time_interval;
 
     for (int i = 0; i < num_states; i++) {
@@ -618,8 +638,8 @@ void gen_traj_from_spline(car_state &cstate,
                                map_waypoints_dy, test_next_x, test_next_y, test_future_points, test_time_interval);
 
 
-        state_cost[i] += eval_state(delta_t, test_next_x, test_next_y,
-                                    sensor_fusion, map_waypoints_x, map_waypoints_y);
+        state_cost[i] += eval_state(delta_t, test_next_x, test_next_y, sensor_fusion, map_waypoints_x, map_waypoints_y,
+                                    cstate);
 
         vector<double>().swap(test_next_x);
         vector<double>().swap(test_next_y);
@@ -627,9 +647,9 @@ void gen_traj_from_spline(car_state &cstate,
     }
 
     //print out state cost:
-    /*for (int i = 0; i < num_states; i++) {
+    for (int i = 0; i < num_states; i++) {
         cout << "state" << state_to_try[i] << ":" << state_cost[i] << endl;
-    }*/
+    }
 
     auto result_state = min_element(state_cost.begin(), state_cost.end());
     int min_state_index = result_state - state_cost.begin();

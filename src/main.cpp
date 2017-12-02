@@ -141,7 +141,7 @@ int main() {
                     auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
                     // probably have to active this line to avoid the memory error
-                    this_thread::sleep_for(chrono::milliseconds(100));
+                    this_thread::sleep_for(chrono::milliseconds(250));
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
                 }
