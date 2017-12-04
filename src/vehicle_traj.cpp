@@ -458,14 +458,19 @@ double safe_switch(const car_state &curent_car_state, const int target_lane_num,
         int neighbor_car_lane = floor(neighbor_car_d / lane_width);
 
         if (target_lane_num == neighbor_car_lane) {
-            double current_car_dist = curent_car_state.car_s - neighbor_car_s;
-            if (current_car_dist > 0 && current_car_dist < min_back_car_dist) {
+            double current_car_dist = abs(curent_car_state.car_s - neighbor_car_s);
+            if ((current_car_dist < min_back_car_dist)) {
                 min_back_car_dist = current_car_dist;
             }
         }
 
     }
-    return 1 / (min_back_car_dist + 0.1); //add 0.1 to avoid 1/0
+    if (min_back_car_dist < 10) {
+        cout << "Warning: dangerous to switch" << endl;
+        return 1000;
+    } else {
+        return 0; //add 0.1 to avoid 1/0
+    }
 
 }
 
@@ -677,7 +682,8 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
 
     if (state_number == 4) {
         //deacceleration
-        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, 1, -acceleration,
+        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, (cstate.car_speed + 1) / 2,
+                    -acceleration,
                     cstate.car_speed, read_in_interval);
     } else {
         fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, desired_speed, acceleration,
@@ -717,6 +723,10 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
                                      {1, 0, 2, 4},
                                      {2, 1, 4}};
 
+
+    // Use the following state setting if just accelearte and decelerate
+    //vector<vector<int>> state_map ={{0,4},{1,4},{2,4}};
+
     //native way to determine which state is staying
 
     int car_lane = floor(cstate.car_d / lane_width);
@@ -733,6 +743,7 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
         state_cost[i] = 0;
     }
 
+    //state_cost[0]-=0.05;
 
     const double delta_t = 0.2;
     const double acceleration = 6;
@@ -743,10 +754,12 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
         if (i == 0) {
             next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
+
         } else if (state_to_try[i] >= 0 && state_to_try[i] <= 2) {
+
             next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
-            next_car_state.car_d = 0.5 * lane_width + lane_width * i;
+            next_car_state.car_d = 0.5 * lane_width + lane_width * state_to_try[i];
             vector<double> nc = getXY(next_car_state.car_s, next_car_state.car_d,
                                       map_waypoints_s, map_waypoints_x, map_waypoints_y);
             next_car_state.car_x = nc[0];
@@ -759,16 +772,19 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
             next_car_state = guess_next_car_state(cstate, delta_t, -acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
 
-            cout << "s at dcc:" << next_car_state.car_s << endl;
+            //TODO quick hack
+            cstate.car_speed = cstate.car_speed / 2;
+
+            //cout << "s at dcc:" << next_car_state.car_s << endl;
         }
 
         next_coll_time = eval_next_collision(next_car_state, sensor_fusion, map_waypoints_x, map_waypoints_y,
                                              lane_width);
 
-        cout << "time to collide of state" << state_to_try[i] << ":" << next_coll_time << endl;
+        //cout << "time to collide of state" << state_to_try[i] << ":" << next_coll_time << endl;
         //state_cost[i] += eval_cost(next_car_state.car_x, next_car_state.car_y, next_car_state.car_yaw,
         //                           delta_t, sensor_fusion, map_waypoints_x, map_waypoints_y, lane_width);
-        state_cost[i] += (1 / next_coll_time + 0.2 * (20 - next_car_state.car_speed));
+        state_cost[i] += (1 / next_coll_time + 0.05 * (20 - next_car_state.car_speed));
 
     }
 
@@ -779,16 +795,7 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
 
     auto result_state = min_element(state_cost.begin(), state_cost.end());
     int min_state_index = result_state - state_cost.begin();
-/*
-    //TODO a test hack
-    if (state_cost[1]>0.08)
-    {
-        min_state_index=1;
-    }
-    else
-    {
-        min_state_index=0;
-    }*/
+
 
     //TODO magic number 50 and 0.02
     cout << "recommended next state:" << state_to_try[min_state_index] << endl;
