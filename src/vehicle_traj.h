@@ -68,13 +68,11 @@ void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &t
 
 void print_map(const vector<double> &map_x, const vector<double> &map_y, int number);
 
-void gen_traj_from_spline(car_state &cstate,
-                          vector<double> &previous_path_x,
-                          vector<double> &previous_path_y,
+void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, vector<double> &previous_path_y,
                           const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
                           const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
                           const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
-                          vector<double> &next_y_vals);
+                          vector<double> &next_y_vals, const vector<double> &map_waypoints_s);
 
 
 void fill_jmt(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,

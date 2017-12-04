@@ -6,6 +6,9 @@
 #include "vehicle_traj.h"
 
 
+double
+eval_cost(double car_x, double car_y, double car_theta, double delta_t, const vector<vector<double>> &sensor_fusion,
+          const vector<double> &map_x, const vector<double> &map_y, const double lane_width);
 
 constexpr double pi() { return 3.14159265359; }
 
@@ -389,9 +392,10 @@ void print_map(const vector<double> &map_x, const vector<double> &map_y, int num
 }
 
 
-double eval_state(double delta_t, const vector<double> &next_x_val, const vector<double> &next_y_val,
-                  const vector<vector<double>> &sensor_fusion, const vector<double> &map_x, const vector<double> &map_y,
-                  const car_state &cstate) {
+double traj_end_eval_state(double delta_t, const vector<double> &next_x_val, const vector<double> &next_y_val,
+                           const vector<vector<double>> &sensor_fusion, const vector<double> &map_x,
+                           const vector<double> &map_y,
+                           const car_state &cstate) {
 
     const double lane_width = 4;
 
@@ -405,8 +409,43 @@ double eval_state(double delta_t, const vector<double> &next_x_val, const vector
     double car_theta = atan2(next_y_val[path_index] - next_y_val[path_index - 1],
                              next_x_val[path_index] - next_x_val[path_index - 1]);
 
-    vector<double> car_nc = getFrenet(car_next_x, car_next_y, car_theta, map_x, map_y);
+    return eval_cost(car_next_x, car_next_y, car_theta, delta_t, sensor_fusion, map_x, map_y, lane_width);
+
+}
+
+car_state guess_next_car_state(const car_state &current_car_state,
+                               const double delta_t,
+                               const double acc,
+                               const vector<double> &map_x, const vector<double> &map_y, const vector<double> &map_s) {
+
+    const double &s = current_car_state.car_s;
+    const double &a = acc;
+    const double &v0 = current_car_state.car_speed;
+
+    double final_s = s + v0 * delta_t + 0.5 * acc * pow(delta_t, 2);
+
+    car_state next_carstate;
+
+    vector<double> nc = getXY(final_s, current_car_state.car_d, map_s, map_x, map_y);
+
+    next_carstate.car_x = nc[0];
+    next_carstate.car_y = nc[1];
+    next_carstate.car_s = final_s;
+    next_carstate.car_d = current_car_state.car_d;
+    next_carstate.car_yaw = atan2(nc[1] - current_car_state.car_y, nc[0] - current_car_state.car_x);
+    next_carstate.car_speed = v0 + acc * delta_t;
+
+    return next_carstate;
+
+}
+
+
+double
+eval_cost(double car_x, double car_y, double car_theta, double delta_t, const vector<vector<double>> &sensor_fusion,
+          const vector<double> &map_x, const vector<double> &map_y, const double lane_width) {
+    vector<double> car_nc = getFrenet(car_x, car_y, car_theta, map_x, map_y);
     double car_next_s = car_nc[0];
+    cout << "car_next_s:" << car_next_s << endl;
     double car_next_d = car_nc[1];
 
     int car_lane = floor(car_next_d / lane_width);
@@ -437,7 +476,7 @@ double eval_state(double delta_t, const vector<double> &next_x_val, const vector
             double future_car_dist = neighbor_car_next_s - car_next_s;
             double current_car_dist = neighbor_car_s - car_next_s;
 
-            double current_cost = 1 / future_car_dist;
+            double current_cost = 1 / current_car_dist;
             if (current_cost > cost) cost = current_cost;
 
         }
@@ -452,7 +491,6 @@ double eval_state(double delta_t, const vector<double> &next_x_val, const vector
     }
 
     return cost;
-
 }
 
 
@@ -603,13 +641,11 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
 }
 
 
-void gen_traj_from_spline(car_state &cstate,
-                          vector<double> &previous_path_x,
-                          vector<double> &previous_path_y,
+void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, vector<double> &previous_path_y,
                           const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
                           const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
                           const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
-                          vector<double> &next_y_vals) {
+                          vector<double> &next_y_vals, const vector<double> &map_waypoints_s) {
 
     const int lane_width = 4;
     int prev_lane_number = floor(cstate.car_d / lane_width);
@@ -628,21 +664,22 @@ void gen_traj_from_spline(car_state &cstate,
     const double test_time_interval = 0.3;
     const double delta_t = test_future_points * test_time_interval;
 
+    car_state next_car_state;
     for (int i = 0; i < num_states; i++) {
+        const double delta_t = 1.0;
+        if (state_to_try[i] == 3) {
+            next_car_state = guess_next_car_state(cstate, delta_t, 6, map_waypoints_x, map_waypoints_y,
+                                                  map_waypoints_s);
+            cout << "s at acc:" << next_car_state.car_s << endl;
+        } else if (state_to_try[i] == 4) {
+            next_car_state = guess_next_car_state(cstate, delta_t, -6, map_waypoints_x, map_waypoints_y,
+                                                  map_waypoints_s);
+            cout << "s at dcc:" << next_car_state.car_s << endl;
+        }
 
-        vector<double> test_next_x;
-        vector<double> test_next_y;
-        gen_traj_from_spline_x(cstate, state_to_try[i], {}, {}, sensor_fusion,
-                               map_waypoints_x,
-                               map_waypoints_y, map_waypoints_dx,
-                               map_waypoints_dy, test_next_x, test_next_y, test_future_points, test_time_interval);
+        state_cost[i] += eval_cost(next_car_state.car_x, next_car_state.car_y, next_car_state.car_yaw,
+                                   delta_t, sensor_fusion, map_waypoints_x, map_waypoints_y, 4.0);
 
-
-        state_cost[i] += eval_state(delta_t, test_next_x, test_next_y, sensor_fusion, map_waypoints_x, map_waypoints_y,
-                                    cstate);
-
-        vector<double>().swap(test_next_x);
-        vector<double>().swap(test_next_y);
 
     }
 
