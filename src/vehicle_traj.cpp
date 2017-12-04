@@ -376,10 +376,9 @@ vector<double> car_to_map_coords(double local_map_x, double local_map_y,
 }
 
 void print_map(const vector<double> &map_x, const vector<double> &map_y, int number) {
-    int number_to_print;
-    if (number == -1) {
-        number_to_print = map_x.size();
-    } else {
+    unsigned int number_to_print;
+    if (number == -1) number_to_print = map_x.size();
+    else {
         number_to_print = number;
     }
 
@@ -439,13 +438,19 @@ car_state guess_next_car_state(const car_state &current_car_state,
 
 }
 
+double eval_next_collision(car_state curent_car_state, const vector<vector<double>> &sensor_fusion,
+                           const vector<double> &map_x, const vector<double> &map_y, const double lane_width) {
+
+
+    return 0;
+}
+
 
 double
 eval_cost(double car_x, double car_y, double car_theta, double delta_t, const vector<vector<double>> &sensor_fusion,
           const vector<double> &map_x, const vector<double> &map_y, const double lane_width) {
     vector<double> car_nc = getFrenet(car_x, car_y, car_theta, map_x, map_y);
     double car_next_s = car_nc[0];
-    cout << "car_next_s:" << car_next_s << endl;
     double car_next_d = car_nc[1];
 
     int car_lane = floor(car_next_d / lane_width);
@@ -480,13 +485,6 @@ eval_cost(double car_x, double car_y, double car_theta, double delta_t, const ve
             if (current_cost > cost) cost = current_cost;
 
         }
-
-
-        /*
-        if (lane_cost[neighbor_car_lane] < cost && cost > 0) {
-            //only consider the cars in front
-            lane_cost[neighbor_car_lane] = cost;
-        }*/
 
     }
 
@@ -534,7 +532,7 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
     // The lane number that the car stays on. The lane next to the center line is zero.
     int prev_lane_number = floor(cstate.car_d / lane_width);
 
-    if (state_number <= 0 && state_number < 3) {
+    if (state_number >= 0 && state_number < 3) {
         next_lane_number = state_number;
     } else {
         next_lane_number = prev_lane_number;
@@ -654,32 +652,54 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
     assert(prev_lane_number < 3 && prev_lane_number >= 0);
 
 
-    const vector<int> state_to_try = {3, 4};
+    vector<vector<int>> state_map = {{0, 1, 4},
+                                     {1, 0, 2, 4},
+                                     {2, 1, 4}};
+
+    //native way to determine which state is staying
+
+    int car_lane = floor(cstate.car_d / lane_width);
+    assert (car_lane >= 0 && car_lane <= 2);
+
+
+    const vector<int> state_to_try = state_map[car_lane];
     int num_states = state_to_try.size();
     //vector<double> state_cost(num_states);
     //state_cost[0] = -0.01;
-    vector<double> state_cost = {-0.01, 0};
+    vector<double> state_cost(num_states);
 
-    const int test_future_points = 10;
-    const double test_time_interval = 0.3;
-    const double delta_t = test_future_points * test_time_interval;
+    for (int i = 0; i < num_states; i++) {
+        state_cost[i] = 0;
+    }
+
+    state_cost[0] += -0.01;
+
+    const double delta_t = 1.0;
+    const double acceleration = 6;
 
     car_state next_car_state;
+
     for (int i = 0; i < num_states; i++) {
-        const double delta_t = 1.0;
-        if (state_to_try[i] == 3) {
-            next_car_state = guess_next_car_state(cstate, delta_t, 6, map_waypoints_x, map_waypoints_y,
+        if (i == 0) {
+            next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
             cout << "s at acc:" << next_car_state.car_s << endl;
+        } else if (state_to_try[i] >= 0 && state_to_try[i] <= 2) {
+            next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
+                                                  map_waypoints_s);
+            next_car_state.car_d = 0.5 * lane_width + lane_width * i;
+            vector<double> nc = getXY(next_car_state.car_s, next_car_state.car_d,
+                                      map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            next_car_state.car_x = nc[0];
+            next_car_state.car_y = nc[1];
         } else if (state_to_try[i] == 4) {
-            next_car_state = guess_next_car_state(cstate, delta_t, -6, map_waypoints_x, map_waypoints_y,
+            next_car_state = guess_next_car_state(cstate, delta_t, -acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
             cout << "s at dcc:" << next_car_state.car_s << endl;
         }
 
         state_cost[i] += eval_cost(next_car_state.car_x, next_car_state.car_y, next_car_state.car_yaw,
-                                   delta_t, sensor_fusion, map_waypoints_x, map_waypoints_y, 4.0);
-
+                                   delta_t, sensor_fusion, map_waypoints_x, map_waypoints_y, lane_width);
 
     }
 
@@ -702,6 +722,7 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
     }*/
 
     //TODO magic number 50 and 0.02
+    cout << "recommended next state:" << state_to_try[min_state_index] << endl;
     gen_traj_from_spline_x(cstate, state_to_try[min_state_index], previous_path_x, previous_path_y, sensor_fusion,
                            map_waypoints_x,
                            map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50, 0.02);

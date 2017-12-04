@@ -49,6 +49,12 @@ int main() {
         map_waypoints_dy.push_back(d_y);
     }
 
+    vector<vector<int>> state_map = {{0, 1, 4},
+                                     {0, 1, 2, 4},
+                                     {1, 2, 4}};
+
+    cout << state_map[0][2] << endl;
+
     vector<double> nc = getFrenet(747, 1130, -0.07, map_waypoints_x, map_waypoints_y);
     cout << "s:" << nc[0] << endl;
     cout << "d:" << nc[1] << endl;
