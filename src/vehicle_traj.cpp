@@ -438,11 +438,73 @@ car_state guess_next_car_state(const car_state &current_car_state,
 
 }
 
+double safe_switch(const car_state &curent_car_state, const int target_lane_num,
+                   const vector<vector<double>> &sensor_fusion,
+                   const double lane_width) {
+
+    int min_back_car_dist = 100;
+    for (int i = 0; i < sensor_fusion.size(); i++) {
+        double neighbor_car_d = sensor_fusion[i][6];
+        double neighbor_car_s = sensor_fusion[i][5];
+
+        double neighbor_car_x = sensor_fusion[i][1];
+        double neighbor_car_y = sensor_fusion[i][2];
+
+        double vx = sensor_fusion[i][3];
+        double vy = sensor_fusion[i][4];
+        double neighbor_car_theta = atan2(vy, vx);
+        double vs = sqrt(vy * vy + vx * vx);
+
+        int neighbor_car_lane = floor(neighbor_car_d / lane_width);
+
+        if (target_lane_num == neighbor_car_lane) {
+            double current_car_dist = curent_car_state.car_s - neighbor_car_s;
+            if (current_car_dist > 0 && current_car_dist < min_back_car_dist) {
+                min_back_car_dist = current_car_dist;
+            }
+        }
+
+    }
+    return 1 / (min_back_car_dist + 0.1); //add 0.1 to avoid 1/0
+
+}
+
 double eval_next_collision(car_state curent_car_state, const vector<vector<double>> &sensor_fusion,
                            const vector<double> &map_x, const vector<double> &map_y, const double lane_width) {
 
+    double cost = 0;
 
-    return 0;
+    // find the nearest front car
+    int front_car_index = -1;
+    int car_lane = floor(curent_car_state.car_d / lane_width);
+
+    double collision_time = 1000;
+
+    for (int i = 0; i < sensor_fusion.size(); i++) {
+        double neighbor_car_d = sensor_fusion[i][6];
+        double neighbor_car_s = sensor_fusion[i][5];
+
+        double neighbor_car_x = sensor_fusion[i][1];
+        double neighbor_car_y = sensor_fusion[i][2];
+
+        double vx = sensor_fusion[i][3];
+        double vy = sensor_fusion[i][4];
+        double neighbor_car_theta = atan2(vy, vx);
+        double vs = sqrt(vy * vy + vx * vx);
+
+
+        int neighbor_car_lane = floor(neighbor_car_d / lane_width);
+
+        if (car_lane == neighbor_car_lane) {
+            double current_car_dist = neighbor_car_s - curent_car_state.car_s;
+            if (current_car_dist > 0) {
+                double ct = current_car_dist / (curent_car_state.car_speed);
+                if (ct < collision_time) collision_time = ct;
+            }
+        }
+
+    }
+    return collision_time;
 }
 
 
@@ -473,7 +535,6 @@ eval_cost(double car_x, double car_y, double car_theta, double delta_t, const ve
 
         double neighbor_car_next_s = nc[0];
         double neighbor_car_next_d = nc[1];
-
 
         int neighbor_car_lane = floor(neighbor_car_next_d / lane_width);
 
@@ -672,18 +733,16 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
         state_cost[i] = 0;
     }
 
-    state_cost[0] += -0.01;
 
-    const double delta_t = 1.0;
+    const double delta_t = 0.2;
     const double acceleration = 6;
 
     car_state next_car_state;
-
+    double next_coll_time = 100;
     for (int i = 0; i < num_states; i++) {
         if (i == 0) {
             next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
-            cout << "s at acc:" << next_car_state.car_s << endl;
         } else if (state_to_try[i] >= 0 && state_to_try[i] <= 2) {
             next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
@@ -692,14 +751,24 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
                                       map_waypoints_s, map_waypoints_x, map_waypoints_y);
             next_car_state.car_x = nc[0];
             next_car_state.car_y = nc[1];
+
+            //Add the cost of switching lanes because of the car in the back of the neighbor lane
+            state_cost[i] += safe_switch(cstate, state_to_try[i], sensor_fusion, lane_width);
+
         } else if (state_to_try[i] == 4) {
             next_car_state = guess_next_car_state(cstate, delta_t, -acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
+
             cout << "s at dcc:" << next_car_state.car_s << endl;
         }
 
-        state_cost[i] += eval_cost(next_car_state.car_x, next_car_state.car_y, next_car_state.car_yaw,
-                                   delta_t, sensor_fusion, map_waypoints_x, map_waypoints_y, lane_width);
+        next_coll_time = eval_next_collision(next_car_state, sensor_fusion, map_waypoints_x, map_waypoints_y,
+                                             lane_width);
+
+        cout << "time to collide of state" << state_to_try[i] << ":" << next_coll_time << endl;
+        //state_cost[i] += eval_cost(next_car_state.car_x, next_car_state.car_y, next_car_state.car_yaw,
+        //                           delta_t, sensor_fusion, map_waypoints_x, map_waypoints_y, lane_width);
+        state_cost[i] += (1 / next_coll_time + 0.2 * (20 - next_car_state.car_speed));
 
     }
 
