@@ -45,6 +45,17 @@ struct car_state {
     double car_speed = 0;
 };
 
+enum CarStateNum {
+  left_lane = 0,
+  middle_lane = 1,
+  right_lane = 2,
+  stopping = 4,
+};
+
+//The mapping of the state. The first is the incumbent state.
+const vector<vector<CarStateNum>> state_map = {{left_lane, middle_lane, stopping},
+                                               {middle_lane, left_lane, right_lane, stopping},
+                                               {right_lane, middle_lane, stopping}};
 
 vector<double> map_to_car_coords(double global_map_x, double global_map_y,
                                  double global_car_x, double global_car_y, double car_yaw);
