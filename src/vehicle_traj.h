@@ -57,12 +57,11 @@ const vector<vector<CarStateNum>> state_map = {{left_lane, middle_lane, stopping
                                                {middle_lane, left_lane, right_lane, stopping},
                                                {right_lane, middle_lane, stopping}};
 
-vector<double> map_to_car_coords(double global_map_x, double global_map_y,
-                                 double global_car_x, double global_car_y, double car_yaw);
+vector<double> global_to_car(double global_map_x, double global_map_y,
+                             double global_car_x, double global_car_y, double car_yaw);
 
-
-vector<double> car_to_map_coords(double local_map_x, double local_map_y,
-                                 double global_car_x, double global_car_y, double car_yaw);
+vector<double> car_to_global(double local_map_x, double local_map_y,
+                             double global_car_x, double global_car_y, double car_yaw);
 
 
 vector<double> JMT(vector< double> start, vector <double> end, double T);
@@ -97,3 +96,7 @@ vector<double> getFrenet(double x, double y, double theta,
 void map_to_car_coords_array(const car_state &cstate, vector<double> &next_map_x, vector<double> &next_map_y);
 
 void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals);
+
+double
+eval_cost(double car_x, double car_y, double car_theta, double delta_t, const vector<vector<double>> &sensor_fusion,
+          const vector<double> &map_x, const vector<double> &map_y, const double lane_width);

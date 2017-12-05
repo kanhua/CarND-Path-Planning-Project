@@ -5,10 +5,6 @@
 
 #include "vehicle_traj.h"
 
-double
-eval_cost(double car_x, double car_y, double car_theta, double delta_t, const vector<vector<double>> &sensor_fusion,
-          const vector<double> &map_x, const vector<double> &map_y, const double lane_width);
-
 constexpr double pi() { return 3.14159265359; }
 
 double deg2rad(double x) { return x * pi() / 180; }
@@ -349,8 +345,8 @@ void fill_jmt(vector<double> &map_x, vector<double> &map_y, vector<double> &traj
 
 }
 
-vector<double> map_to_car_coords(double global_map_x, double global_map_y,
-                                 double global_car_x, double global_car_y, double car_yaw) {
+vector<double> global_to_car(double global_map_x, double global_map_y,
+                             double global_car_x, double global_car_y, double car_yaw) {
   double local_map_x;
   double local_map_y;
 
@@ -363,8 +359,8 @@ vector<double> map_to_car_coords(double global_map_x, double global_map_y,
   return {local_map_x, local_map_y};
 }
 
-vector<double> car_to_map_coords(double local_map_x, double local_map_y,
-                                 double global_car_x, double global_car_y, double car_yaw) {
+vector<double> car_to_global(double local_map_x, double local_map_y,
+                             double global_car_x, double global_car_y, double car_yaw) {
 
   double global_map_x;
   double global_map_y;
@@ -554,6 +550,28 @@ eval_cost(double car_x, double car_y, double car_theta, double delta_t, const ve
   return cost;
 }
 
+void initialize_reference_points(const car_state &cstate,
+                                 int prev_points,
+                                 const vector<double> &previous_path_x,
+                                 const vector<double> &previous_path_y,
+                                 double &before_next_path_start_x,
+                                 double &before_next_path_start_y,
+                                 double &next_path_start_x,
+                                 double &next_path_start_y,
+                                 double &ref_x,
+                                 double &ref_y,
+                                 double &ref_yaw);
+
+void gen_next_map_waypoints(const vector<double> &map_waypoints_x,
+                            const vector<double> &map_waypoints_y,
+                            const vector<double> &map_waypoints_dx,
+                            const vector<double> &map_waypoints_dy,
+                            int next_lane_number,
+                            int num_next_index,
+                            const int lane_width,
+                            int closest_index,
+                            vector<double> &next_map_waypoints_x,
+                            vector<double> &next_map_waypoints_y);
 void gen_traj_from_spline(const car_state &cstate, const int state_number, const vector<double> &previous_path_x,
                           const vector<double> &previous_path_y, const vector<vector<double>> &sensor_fusion,
                           const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
@@ -567,11 +585,11 @@ void gen_traj_from_spline(const car_state &cstate, const int state_number, const
 
   double acceleration = 6;
 
+  double before_next_path_start_x = 0;
+  double before_next_path_start_y = 0;
+
   double next_path_start_x = 0;
   double next_path_start_y = 0;
-
-  double next_path_start2_x = 0;
-  double next_path_start2_y = 0;
 
   double ref_x = 0;
   double ref_y = 0;
@@ -602,34 +620,17 @@ void gen_traj_from_spline(const car_state &cstate, const int state_number, const
 
   int prev_points = previous_path_x.size();
   assert(previous_path_x.size() == previous_path_y.size());
-
-  // Set the starting point of the next generated path
-  if (previous_path_x.size() > 2) {
-    //Use the end points of previous_path_x
-    next_path_start_x = previous_path_x[prev_points - 2];
-    next_path_start_y = previous_path_y[prev_points - 2];
-
-    next_path_start2_x = previous_path_x[prev_points - 1];
-    next_path_start2_y = previous_path_y[prev_points - 1];
-
-    ref_x = next_path_start2_x;
-    ref_y = next_path_start2_y;
-    ref_yaw = atan2(next_path_start2_y - next_path_start_y, next_path_start2_x - next_path_start_x);
-
-  } else {
-
-    //Use the current coordinates of the car
-    next_path_start2_x = cstate.car_x;
-    next_path_start2_y = cstate.car_y;
-
-    next_path_start_x = cstate.car_x - cos(cstate.car_yaw);
-    next_path_start_y = cstate.car_y - sin(cstate.car_yaw);
-
-    ref_x = cstate.car_x;
-    ref_y = cstate.car_y;
-    ref_yaw = cstate.car_yaw;
-
-  }
+  initialize_reference_points(cstate,
+                              prev_points,
+                              previous_path_x,
+                              previous_path_y,
+                              before_next_path_start_x,
+                              before_next_path_start_y,
+                              next_path_start_x,
+                              next_path_start_y,
+                              ref_x,
+                              ref_y,
+                              ref_yaw);
 
 
   //Find the closest index
@@ -642,41 +643,53 @@ void gen_traj_from_spline(const car_state &cstate, const int state_number, const
     closest_index++;
   }
 
-  vector<double> next_map_x;
-  vector<double> next_map_y;
+  vector<double> next_map_waypoints_x;
+  vector<double> next_map_waypoints_y;
 
-  next_map_x.push_back(next_path_start_x);
-  next_map_x.push_back(next_path_start2_x);
+  next_map_waypoints_x.push_back(before_next_path_start_x);
+  next_map_waypoints_x.push_back(next_path_start_x);
 
-  next_map_y.push_back(next_path_start_y);
-  next_map_y.push_back(next_path_start2_y);
+  next_map_waypoints_y.push_back(before_next_path_start_y);
+  next_map_waypoints_y.push_back(next_path_start_y);
 
+  gen_next_map_waypoints(map_waypoints_x,
+                         map_waypoints_y,
+                         map_waypoints_dx,
+                         map_waypoints_dy,
+                         next_lane_number,
+                         num_next_index,
+                         lane_width,
+                         closest_index,
+                         next_map_waypoints_x,
+                         next_map_waypoints_y);
 
-  // Construct the array for spline fitting
-  for (int i = 0; i < num_next_index; i++) {
-    int waypoints_index = (closest_index + i) % map_waypoints_x.size();
-    assert(waypoints_index < map_waypoints_x.size());
-
-    next_map_x.push_back(map_waypoints_x[waypoints_index] +
-        ((next_lane_number + 0.5) * lane_width) * map_waypoints_dx[waypoints_index]);
-    next_map_y.push_back(map_waypoints_y[waypoints_index] +
-        ((next_lane_number + 0.5) * lane_width) * map_waypoints_dy[waypoints_index]);
-
-  }
-
-  map_to_car_coords_array(cstate, next_map_x, next_map_y);
+  map_to_car_coords_array(cstate, next_map_waypoints_x, next_map_waypoints_y);
 
 
   // Find next points
   int points_to_generate = total_future_points - prev_points;
 
-  if (state_number == 4) {
+  if (state_number == stopping) {
     //deacceleration
-    fill_spline(next_map_x, next_map_y, points_to_generate, (cstate.car_speed + 1) / 2, -acceleration,
-                cstate.car_speed, read_in_interval, next_x_vals, next_y_vals);
+    fill_spline(next_map_waypoints_x,
+                next_map_waypoints_y,
+                points_to_generate,
+                (cstate.car_speed + 1) / 2,
+                -acceleration,
+                cstate.car_speed,
+                read_in_interval,
+                next_x_vals,
+                next_y_vals);
   } else {
-    fill_spline(next_map_x, next_map_y, points_to_generate, desired_speed, acceleration, cstate.car_speed,
-                read_in_interval, next_x_vals, next_y_vals);
+    fill_spline(next_map_waypoints_x,
+                next_map_waypoints_y,
+                points_to_generate,
+                desired_speed,
+                acceleration,
+                cstate.car_speed,
+                read_in_interval,
+                next_x_vals,
+                next_y_vals);
   }
 
 
@@ -689,9 +702,67 @@ void gen_traj_from_spline(const car_state &cstate, const int state_number, const
     next_y_vals.insert(next_y_vals.begin(), previous_path_y.begin(), previous_path_y.end());
   }
 
-  vector<double>().swap(next_map_x);
-  vector<double>().swap(next_map_y);
+  vector<double>().swap(next_map_waypoints_x);
+  vector<double>().swap(next_map_waypoints_y);
 
+}
+void gen_next_map_waypoints(const vector<double> &map_waypoints_x,
+                            const vector<double> &map_waypoints_y,
+                            const vector<double> &map_waypoints_dx,
+                            const vector<double> &map_waypoints_dy,
+                            int next_lane_number,
+                            int num_next_index,
+                            const int lane_width,
+                            int closest_index,
+                            vector<double> &next_map_waypoints_x,
+                            vector<double> &next_map_waypoints_y) {// Construct the array for spline fitting
+  for (int i = 0; i < num_next_index; i++) {
+    int waypoints_index = (closest_index + i) % map_waypoints_x.size();
+
+    next_map_waypoints_x.push_back(map_waypoints_x[waypoints_index] +
+        ((next_lane_number + 0.5) * lane_width) * map_waypoints_dx[waypoints_index]);
+    next_map_waypoints_y.push_back(map_waypoints_y[waypoints_index] +
+        ((next_lane_number + 0.5) * lane_width) * map_waypoints_dy[waypoints_index]);
+
+  }
+}
+void initialize_reference_points(const car_state &cstate,
+                                 int prev_points,
+                                 const vector<double> &previous_path_x,
+                                 const vector<double> &previous_path_y,
+                                 double &before_next_path_start_x,
+                                 double &before_next_path_start_y,
+                                 double &next_path_start_x,
+                                 double &next_path_start_y,
+                                 double &ref_x,
+                                 double &ref_y,
+                                 double &ref_yaw) {// Set the starting point of the next generated path
+  if (previous_path_x.size() > 2) {
+//Use the end points of previous_path_x
+    before_next_path_start_x = previous_path_x[prev_points - 2];
+    before_next_path_start_y = previous_path_y[prev_points - 2];
+
+    next_path_start_x = previous_path_x[prev_points - 1];
+    next_path_start_y = previous_path_y[prev_points - 1];
+
+    ref_x = next_path_start_x;
+    ref_y = next_path_start_y;
+    ref_yaw = atan2(next_path_start_y - before_next_path_start_y, next_path_start_x - before_next_path_start_x);
+
+  } else {
+
+//Use the current coordinates of the car
+    next_path_start_x = cstate.car_x;
+    next_path_start_y = cstate.car_y;
+
+    before_next_path_start_x = cstate.car_x - cos(cstate.car_yaw);
+    before_next_path_start_y = cstate.car_y - sin(cstate.car_yaw);
+
+    ref_x = cstate.car_x;
+    ref_y = cstate.car_y;
+    ref_yaw = cstate.car_yaw;
+
+  }
 }
 
 void
@@ -707,18 +778,8 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
 
   assert(prev_lane_number < 3 && prev_lane_number >= 0);
 
-  /*
-  vector<vector<int>> state_map = {{0, 1, 4},
-                                   {1, 0, 2, 4},
-                                   {2, 1, 4}};
-  */
-
-
-  // Use the following state setting if just accelearte and decelerate
-  //vector<vector<int>> state_map ={{0,4},{1,4},{2,4}};
-
-  //native way to determine which state is staying
-
+  //Determine which state that the car is by calculating the lane that the car is staying.
+  //Therefore, strictly speaking, "stopping" is not a state.
   int car_lane = floor(cstate.car_d / lane_width);
   assert (car_lane >= 0 && car_lane <= 2);
 
@@ -794,8 +855,8 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
 
 void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals) {
   for (int i = 0; i < next_x_vals.size(); i++) {
-    vector<double> nc = car_to_map_coords(next_x_vals[i], next_y_vals[i],
-                                          cstate.car_x, cstate.car_y, cstate.car_yaw);
+    vector<double> nc = car_to_global(next_x_vals[i], next_y_vals[i],
+                                      cstate.car_x, cstate.car_y, cstate.car_yaw);
 
     next_x_vals[i] = nc[0];
     next_y_vals[i] = nc[1];
@@ -805,8 +866,8 @@ void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals
 void map_to_car_coords_array(const car_state &cstate, vector<double> &next_map_x, vector<double> &next_map_y) {
   for (int i = 0; i < next_map_x.size(); i++) {
     //convert the map points to car coordinates
-    vector<double> nc = map_to_car_coords(next_map_x[i], next_map_y[i],
-                                          cstate.car_x, cstate.car_y, cstate.car_yaw);
+    vector<double> nc = global_to_car(next_map_x[i], next_map_y[i],
+                                      cstate.car_x, cstate.car_y, cstate.car_yaw);
 
     next_map_x[i] = nc[0];
     next_map_y[i] = nc[1];
