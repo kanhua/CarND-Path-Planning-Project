@@ -200,9 +200,20 @@ vector<double> JMT(vector<double> start, vector<double> end, double T) {
 
 }
 
-void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
-                 int points_to_generate, double desired_speed, double acceleration, double car_speed,
-                 double read_in_interval) {
+/// Do the spline fitting from map_x and map_y. This procedure takes into account the car_speed,
+/// desired_speed and acceleration to generate the trajectory.
+/// \param map_x
+/// \param map_y
+/// \param points_to_generate
+/// \param desired_speed speed (m/s) that the car tries to approach
+/// \param acceleration
+/// \param car_speed
+/// \param read_in_interval
+/// \param traj_x array of x that will be filled into.
+/// \param traj_y array of y that will be filled into.
+void fill_spline(const vector<double> &map_x, const vector<double> &map_y, int points_to_generate, double desired_speed,
+                 double acceleration, double car_speed, double read_in_interval, vector<double> &traj_x,
+                 vector<double> &traj_y) {
 
 
     // time interval between each reading of the simulator
@@ -558,12 +569,12 @@ eval_cost(double car_x, double car_y, double car_theta, double delta_t, const ve
 }
 
 
-void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vector<double> &previous_path_x,
-                            const vector<double> &previous_path_y, const vector<vector<double>> &sensor_fusion,
-                            const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
-                            const vector<double> &map_waypoints_dx, const vector<double> &map_waypoints_dy,
-                            vector<double> &next_x_vals, vector<double> &next_y_vals, int total_future_points,
-                            double read_in_interval) {
+void gen_traj_from_spline(const car_state &cstate, const int state_number, const vector<double> &previous_path_x,
+                          const vector<double> &previous_path_y, const vector<vector<double>> &sensor_fusion,
+                          const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
+                          const vector<double> &map_waypoints_dx, const vector<double> &map_waypoints_dy,
+                          vector<double> &next_x_vals, vector<double> &next_y_vals, int total_future_points,
+                          double read_in_interval) {
 
     assert(state_number >= 0 && state_number <= 4);
     assert(next_x_vals.size() == 0);
@@ -682,12 +693,11 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
 
     if (state_number == 4) {
         //deacceleration
-        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, (cstate.car_speed + 1) / 2,
-                    -acceleration,
-                    cstate.car_speed, read_in_interval);
+        fill_spline(next_map_x, next_map_y, points_to_generate, (cstate.car_speed + 1) / 2, -acceleration,
+                    cstate.car_speed, read_in_interval, next_x_vals, next_y_vals);
     } else {
-        fill_spline(next_map_x, next_map_y, next_x_vals, next_y_vals, points_to_generate, desired_speed, acceleration,
-                    cstate.car_speed, read_in_interval);
+        fill_spline(next_map_x, next_map_y, points_to_generate, desired_speed, acceleration, cstate.car_speed,
+                    read_in_interval, next_x_vals, next_y_vals);
     }
 
 
@@ -706,11 +716,12 @@ void gen_traj_from_spline_x(car_state &cstate, const int state_number, const vec
 }
 
 
-void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, vector<double> &previous_path_y,
-                          const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
-                          const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
-                          const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
-                          vector<double> &next_y_vals, const vector<double> &map_waypoints_s) {
+void
+gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, const vector<double> &previous_path_y,
+              const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
+              const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
+              const vector<double> &map_waypoints_dy, const vector<double> &map_waypoints_s,
+              vector<double> &next_x_vals, vector<double> &next_y_vals) {
 
     const int lane_width = 4;
     int prev_lane_number = floor(cstate.car_d / lane_width);
@@ -772,14 +783,11 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
             next_car_state = guess_next_car_state(cstate, delta_t, -acceleration, map_waypoints_x, map_waypoints_y,
                                                   map_waypoints_s);
 
-            //TODO quick hack
-            cstate.car_speed = cstate.car_speed / 2;
-
-            //cout << "s at dcc:" << next_car_state.car_s << endl;
         }
 
         next_coll_time = eval_next_collision(next_car_state, sensor_fusion, map_waypoints_x, map_waypoints_y,
                                              lane_width);
+        assert(next_coll_time > 0);
 
         //cout << "time to collide of state" << state_to_try[i] << ":" << next_coll_time << endl;
         //state_cost[i] += eval_cost(next_car_state.car_x, next_car_state.car_y, next_car_state.car_yaw,
@@ -799,11 +807,10 @@ void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, ve
 
     //TODO magic number 50 and 0.02
     cout << "recommended next state:" << state_to_try[min_state_index] << endl;
-    gen_traj_from_spline_x(cstate, state_to_try[min_state_index], previous_path_x, previous_path_y, sensor_fusion,
-                           map_waypoints_x,
-                           map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50, 0.02);
+    gen_traj_from_spline(cstate, state_to_try[min_state_index], previous_path_x, previous_path_y, sensor_fusion,
+                         map_waypoints_x,
+                         map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50, 0.02);
 
-    //print_map(next_x_vals, next_y_vals, 10);
 }
 
 void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals) {
@@ -826,41 +833,6 @@ void map_to_car_coords_array(const car_state &cstate, vector<double> &next_map_x
         next_map_y[i] = nc[1];
 
     }
-}
-
-void
-get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number,
-              vector<double> &lane_cost) {
-
-    for (int i = 0; i < 3; i++) {
-        lane_cost[i] = 0;
-    }
-
-
-    // Sense other cars on the road
-    cout << "reading sensor fusion data" << endl;
-    for (int i = 0; i < sensor_fusion.size(); i++) {
-        double neighbor_car_d = sensor_fusion[i][6];
-        int on_lane = floor(neighbor_car_d / lane_width);
-
-        double neighbor_car_s = sensor_fusion[i][5];
-        double car_dist = neighbor_car_s - car_s;
-
-        double cost = 1 / car_dist;
-        if (lane_cost[on_lane] < cost) {
-            lane_cost[on_lane] = cost;
-        }
-
-    }
-
-    // "incumbent" advantage
-    lane_cost[prev_lane_number] -= 0.01;
-
-    cout << "lane cost:" << endl;
-    for (int i = 0; i < 3; i++) {
-        cout << lane_cost[i] << endl;
-    }
-
 }
 
 

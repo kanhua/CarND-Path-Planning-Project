@@ -121,10 +121,9 @@ int main() {
                     vector<double> next_x_vals;
                     vector<double> next_y_vals;
 
-                    gen_traj_from_spline(current_car_state, previous_path_x, previous_path_y, sensor_fusion,
-                                         map_waypoints_x,
-                                         map_waypoints_y, map_waypoints_dx, map_waypoints_dy,
-                                         next_x_vals, next_y_vals, map_waypoints_s);
+                    gen_next_traj(current_car_state, previous_path_x, previous_path_y, sensor_fusion, map_waypoints_x,
+                                  map_waypoints_y,
+                                  map_waypoints_dx, map_waypoints_dy, map_waypoints_s, next_x_vals, next_y_vals);
 
                     //gen_traj_from_jmt(car_x, car_y, car_s, car_d, car_speed, car_yaw, previous_path_x, previous_path_y,
                     //                     sensor_fusion, map_waypoints_x,

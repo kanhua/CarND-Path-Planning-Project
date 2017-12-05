@@ -53,26 +53,23 @@ vector<double> map_to_car_coords(double global_map_x, double global_map_y,
 vector<double> car_to_map_coords(double local_map_x, double local_map_y,
                                  double global_car_x, double global_car_y, double car_yaw);
 
-void
-get_lane_cost(double car_s, const vector<vector<double>> &sensor_fusion, const int lane_width, int prev_lane_number,
-              vector<double> &lane_cost);
-
 
 vector<double> JMT(vector< double> start, vector <double> end, double T);
 
 
-void fill_spline(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
-                 int points_to_generate, double desired_speed, double acceleration, double car_speed,
-                 double read_in_interval);
+void fill_spline(const vector<double> &map_x, const vector<double> &map_y, int points_to_generate, double desired_speed,
+                 double acceleration, double car_speed, double read_in_interval, vector<double> &traj_x,
+                 vector<double> &traj_y);
 
 
 void print_map(const vector<double> &map_x, const vector<double> &map_y, int number);
 
-void gen_traj_from_spline(car_state &cstate, vector<double> &previous_path_x, vector<double> &previous_path_y,
-                          const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
-                          const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
-                          const vector<double> &map_waypoints_dy, vector<double> &next_x_vals,
-                          vector<double> &next_y_vals, const vector<double> &map_waypoints_s);
+void
+gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, const vector<double> &previous_path_y,
+              const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
+              const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
+              const vector<double> &map_waypoints_dy, const vector<double> &map_waypoints_s,
+              vector<double> &next_x_vals, vector<double> &next_y_vals);
 
 
 void fill_jmt(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
