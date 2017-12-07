@@ -300,7 +300,6 @@ void fill_jmt(const vector<double> &map_x,
               vector<double> &traj_x,
               vector<double> &traj_y) {
 
-
   const double read_in_interval = 0.02; // time interval between each reading of the simulator
   //double desired_speed=20; // desired speed in m/s
 
@@ -314,7 +313,7 @@ void fill_jmt(const vector<double> &map_x,
   double next_x = map_x[2];
   double next_y = map_y[2];
 
-  for (int i = 2; i < map_x.size(); i++) {
+  for (int i = 2; i < map_x.size() - 1; i++) {
     vector<double> x_coef;
     vector<double> y_coef;
     double ds;
@@ -352,7 +351,7 @@ void fill_jmt(const vector<double> &map_x,
 
   }
 
-  print_map(traj_x, traj_y, 10);
+  print_map(traj_x, traj_y, points_to_generate);
 
 }
 
@@ -599,11 +598,173 @@ void gen_next_map_waypoints(const vector<double> &map_waypoints_x,
                             vector<double> &next_map_waypoints_x,
                             vector<double> &next_map_waypoints_y);
 
-void gen_traj_from_spline(const car_state &cstate, const int state_number, const vector<double> &previous_path_x,
-                          const vector<double> &previous_path_y, const vector<vector<double>> &sensor_fusion,
-                          const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
-                          const vector<double> &map_waypoints_dx, const vector<double> &map_waypoints_dy,
-                          vector<double> &next_x_vals, vector<double> &next_y_vals, int total_future_points,
+void gen_traj_from_jmt(const car_state &cstate,
+                       const int state_number,
+                       const vector<double> &previous_path_x,
+                       const vector<double> &previous_path_y,
+                       const vector<vector<double>> &sensor_fusion,
+                       const vector<double> &map_waypoints_x,
+                       const vector<double> &map_waypoints_y,
+                       const vector<double> &map_waypoints_s,
+                       const vector<double> &map_waypoints_dx,
+                       const vector<double> &map_waypoints_dy,
+                       vector<double> &next_x_vals,
+                       vector<double> &next_y_vals,
+                       int total_future_points,
+                       double read_in_interval) {
+
+  assert(state_number >= 0 && state_number <= 4);
+  assert(next_x_vals.size() == 0);
+  assert(next_y_vals.size() == 0);
+
+  double acceleration = 6;
+
+  double before_next_path_start_x = 0;
+  double before_next_path_start_y = 0;
+
+  double next_path_start_x = 0;
+  double next_path_start_y = 0;
+
+  double ref_x = 0;
+  double ref_y = 0;
+  double ref_yaw = 0;
+
+  double desired_speed = 20;
+  int next_lane_number = -1;
+
+
+  //Get the map coordinates of the next few points
+  //Assuming staying on the second lane at the moment
+
+  int num_next_index = 6;
+
+  const int lane_width = 4; // the width of the lane
+
+  // Tell which lane that the car currently stays
+  // The lane number that the car stays on. The lane next to the center line is zero.
+  int prev_lane_number = floor(cstate.car_d / lane_width);
+
+  if (state_number >= 0 && state_number < 3) {
+    next_lane_number = state_number;
+  } else {
+    next_lane_number = prev_lane_number;
+  }
+
+  assert(next_lane_number >= 0 && next_lane_number < 3);
+
+  int prev_points = previous_path_x.size();
+  assert(previous_path_x.size() == previous_path_y.size());
+  initialize_reference_points(cstate,
+                              prev_points,
+                              previous_path_x,
+                              previous_path_y,
+                              before_next_path_start_x,
+                              before_next_path_start_y,
+                              next_path_start_x,
+                              next_path_start_y,
+                              ref_x,
+                              ref_y,
+                              ref_yaw);
+
+
+  //Find the closest index
+
+  int closest_index = NextWaypoint(ref_x, ref_y,
+                                   ref_yaw, map_waypoints_x, map_waypoints_y);
+
+  // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
+  if (next_lane_number != prev_lane_number) {
+    closest_index++;
+  }
+
+  vector<double> next_map_waypoints_x;
+  vector<double> next_map_waypoints_y;
+
+  next_map_waypoints_x.push_back(before_next_path_start_x);
+  next_map_waypoints_x.push_back(next_path_start_x);
+
+  next_map_waypoints_y.push_back(before_next_path_start_y);
+  next_map_waypoints_y.push_back(next_path_start_y);
+
+  gen_next_map_waypoints(map_waypoints_x,
+                         map_waypoints_y,
+                         map_waypoints_dx,
+                         map_waypoints_dy,
+                         next_lane_number,
+                         num_next_index,
+                         lane_width,
+                         closest_index,
+                         next_map_waypoints_x,
+                         next_map_waypoints_y);
+
+  //convert it to Frenet coordinates
+
+  vector<double> next_map_waypoints_s;
+  vector<double> next_map_waypoints_d;
+  for (int i = 0; i < next_map_waypoints_x.size(); i++) {
+    double &x = next_map_waypoints_x[i];
+    double &y = next_map_waypoints_y[i];
+    vector<double> nc = getFrenet(x, y, ref_yaw, map_waypoints_x, map_waypoints_y);
+    next_map_waypoints_s.push_back(nc[0]);
+    next_map_waypoints_d.push_back(nc[1]);
+
+  }
+
+
+  // Find next points
+  int points_to_generate = total_future_points - prev_points;
+
+  /*
+  if (state_number == stopping) {
+    //deacceleration
+
+    fill_jmt(next_map_waypoints_s,next_map_waypoints_d,points_to_generate,
+             (cstate.car_speed+1)/2,cstate.car_speed,next_x_vals,next_y_vals);
+
+  } else {
+
+    fill_jmt(next_map_waypoints_s,next_map_waypoints_d,points_to_generate,
+             desired_speed,cstate.car_speed,next_x_vals,next_y_vals);
+  }
+   */
+
+  fill_jmt(next_map_waypoints_s, next_map_waypoints_d, points_to_generate,
+           desired_speed, desired_speed, next_x_vals, next_y_vals);
+
+  // TODO convert it back to global coordinates, dirty and slow implementation
+
+  assert(next_x_vals.size() == points_to_generate);
+  for (int i = 0; i < points_to_generate; i++) {
+
+    vector<double> nc = getXY(next_x_vals[i], next_y_vals[i], map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    next_x_vals[i] = nc[0];
+    next_y_vals[i] = nc[1];
+
+  }
+
+  if (prev_points > 2) {
+    next_x_vals.insert(next_x_vals.begin(), previous_path_x.begin(), previous_path_x.end());
+    next_y_vals.insert(next_y_vals.begin(), previous_path_y.begin(), previous_path_y.end());
+  }
+
+  vector<double>().swap(next_map_waypoints_x);
+  vector<double>().swap(next_map_waypoints_y);
+
+}
+
+void gen_traj_from_spline(const car_state &cstate,
+                          const int state_number,
+                          const vector<double> &previous_path_x,
+                          const vector<double> &previous_path_y,
+                          const vector<vector<double>> &sensor_fusion,
+                          const vector<double> &map_waypoints_x,
+                          const vector<double> &map_waypoints_y,
+                          const vector<double> &map_waypoints_s,
+                          const vector<double> &map_waypoints_dx,
+                          const vector<double> &map_waypoints_dy,
+                          vector<double> &next_x_vals,
+                          vector<double> &next_y_vals,
+                          int total_future_points,
                           double read_in_interval) {
 
   assert(state_number >= 0 && state_number <= 4);
@@ -708,6 +869,7 @@ void gen_traj_from_spline(const car_state &cstate, const int state_number, const
                 next_x_vals,
                 next_y_vals);
   } else {
+
     fill_spline(next_map_waypoints_x,
                 next_map_waypoints_y,
                 points_to_generate,
@@ -846,9 +1008,20 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
 
   //TODO magic number 50 and 0.02
   cout << "recommended next state:" << state_to_try[min_state_index] << endl;
-  gen_traj_from_spline(cstate, state_to_try[min_state_index], previous_path_x, previous_path_y, sensor_fusion,
-                       map_waypoints_x,
-                       map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50, 0.02);
+  gen_traj_from_jmt(cstate,
+                    state_to_try[min_state_index],
+                    previous_path_x,
+                    previous_path_y,
+                    sensor_fusion,
+                    map_waypoints_x,
+                    map_waypoints_y,
+                    map_waypoints_s,
+                    map_waypoints_dx,
+                    map_waypoints_dy,
+                    next_x_vals,
+                    next_y_vals,
+                    50,
+                    0.02);
 
 }
 vector<double> eval_state_cost(const car_state &cstate,

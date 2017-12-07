@@ -104,3 +104,5 @@ void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals
 double
 eval_cost(double car_x, double car_y, double car_theta, double delta_t, const vector<vector<double>> &sensor_fusion,
           const vector<double> &map_x, const vector<double> &map_y, const double lane_width);
+
+vector<double> fill_poly_traj(vector<double> a_vec, vector<double> t_vec);
