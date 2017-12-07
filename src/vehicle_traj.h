@@ -81,9 +81,13 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
               const vector<double> &map_waypoints_dy, const vector<double> &map_waypoints_s,
               vector<double> &next_x_vals, vector<double> &next_y_vals);
 
-
-void fill_jmt(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
-              int points_to_generate, double desired_speed, double acceleration, double car_speed);
+void fill_jmt(const vector<double> &map_x,
+              const vector<double> &map_y,
+              int points_to_generate,
+              double desired_speed,
+              double car_speed,
+              vector<double> &traj_x,
+              vector<double> &traj_y);
 
 vector<double> getXY(double s, double d, const vector<double> &maps_s,
                      const vector<double> &maps_x, const vector<double> &maps_y);

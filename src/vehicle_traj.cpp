@@ -292,11 +292,14 @@ vector<double> arange(double lower_bound, double higher_bound, double delta_t) {
 
 }
 
-void fill_jmt(vector<double> &map_x, vector<double> &map_y, vector<double> &traj_x, vector<double> &traj_y,
-              int points_to_generate, double desired_speed, double acceleration, double car_speed) {
+void fill_jmt(const vector<double> &map_x,
+              const vector<double> &map_y,
+              int points_to_generate,
+              double desired_speed,
+              double car_speed,
+              vector<double> &traj_x,
+              vector<double> &traj_y) {
 
-  // x-coordinate of the target point
-  double max_x_shift = 30;
 
   const double read_in_interval = 0.02; // time interval between each reading of the simulator
   //double desired_speed=20; // desired speed in m/s
@@ -312,23 +315,31 @@ void fill_jmt(vector<double> &map_x, vector<double> &map_y, vector<double> &traj
   double next_y = map_y[2];
 
   for (int i = 2; i < map_x.size(); i++) {
+    vector<double> x_coef;
+    vector<double> y_coef;
+    double ds;
+    double t_required;
 
-    if (i == 2) {
+    ds = sqrt(pow(next_x - start_x, 2) + pow(next_y - start_y, 2));
 
-      double ds = sqrt(pow(next_x - start_x, 2) + pow(next_y - start_y, 2));
+    t_required = ds / ((car_speed + desired_speed) / 2);
 
-      double t_required = ds / ((car_speed + desired_speed) / 2);
-      vector<double> x_coef = JMT({start_x, desired_speed, 0}, {next_x, desired_speed, 0}, t_required);
-      vector<double> y_coef = JMT({start_y, 0, 0}, {next_y, 0, 0}, t_required);
+    x_coef = JMT({start_x, car_speed, 0}, {next_x, desired_speed, 0}, t_required);
+    y_coef = JMT({start_y, 0, 0}, {next_y, 0, 0}, t_required);
 
-      vector<double> t = arange(0, t_required, read_in_interval);
+    vector<double> t = arange(0, t_required, read_in_interval);
 
-      vector<double> x = fill_poly_traj(x_coef, t);
-      vector<double> y = fill_poly_traj(y_coef, t);
+    vector<double> x = fill_poly_traj(x_coef, t);
+    vector<double> y = fill_poly_traj(y_coef, t);
 
-      new_traj_x.insert(new_traj_x.end(), x.begin(), x.end());
-      new_traj_y.insert(new_traj_y.end(), y.begin(), y.end());
-    }
+    new_traj_x.insert(new_traj_x.end(), x.begin(), x.end());
+    new_traj_y.insert(new_traj_y.end(), y.begin(), y.end());
+
+    start_x = next_x;
+    start_y = next_y;
+
+    next_x = map_x[i + 1];
+    next_y = map_y[i + 1];
 
   }
 
@@ -587,6 +598,7 @@ void gen_next_map_waypoints(const vector<double> &map_waypoints_x,
                             int closest_index,
                             vector<double> &next_map_waypoints_x,
                             vector<double> &next_map_waypoints_y);
+
 void gen_traj_from_spline(const car_state &cstate, const int state_number, const vector<double> &previous_path_x,
                           const vector<double> &previous_path_y, const vector<vector<double>> &sensor_fusion,
                           const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
