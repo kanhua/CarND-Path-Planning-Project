@@ -10,7 +10,6 @@
 #include "vehicle_traj.h"
 #include "spline.h"
 
-
 void plot2d(const vector<double> &x, const vector<double> &y, const char *filename) {
   plstream *pls;
   pls = new plstream();
@@ -56,7 +55,6 @@ void plot2d(const vector<double> &x, const vector<double> &y, const char *filena
   // this is handled by the destructor
   delete pls;
 }
-
 
 void test_s_only() {
   vector<double> a = JMT({0, 10, 0}, {10, 20, 1}, 1);
@@ -147,27 +145,37 @@ void start_up() {
   vector<double> way_s;
   vector<double> way_d;
 
-  way_s.insert(way_s.begin(), map_waypoints_s.begin(), map_waypoints_s.begin() + 30);
+  way_s.insert(way_s.begin(), map_waypoints_s.begin(), map_waypoints_s.begin() + 50);
 
   for (int i = 0; i < way_s.size(); i++) way_d.push_back(6);
 
-  vector<double> next_x_vals;
-  vector<double> next_y_vals;
+  vector<double> next_s_vals;
+  vector<double> next_d_vals;
 
-  int points_to_generate = 1000;
+  int points_to_generate = 200;
 
-  fill_jmt(way_s, way_d, points_to_generate, 20, 20, next_x_vals, next_y_vals);
+  fill_jmt(way_s, way_d, points_to_generate, 20, 20, next_s_vals, next_d_vals);
+
+  vector<double> next_x_vals(points_to_generate);
+  vector<double> next_y_vals(points_to_generate);
 
   for (int i = 0; i < points_to_generate; i++) {
 
-    vector<double> nc = getXY(next_x_vals[i], next_y_vals[i], map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    vector<double> nc = getXY(next_s_vals[i], next_d_vals[i], map_waypoints_s, map_waypoints_x, map_waypoints_y);
     next_x_vals[i] = nc[0];
     next_y_vals[i] = nc[1];
 
   }
+  vector<double> time(next_s_vals.size());
+  assert(next_x_vals.size() == points_to_generate);
 
+  for (int i = 0; i < next_s_vals.size(); i++) {
+    time[i] = i;
+  }
 
-  //print_map(next_x_vals,next_y_vals,50);
+  plot2d(time, next_s_vals, "jmt_st.png");
+
+  //print_map(next_s_vals,next_d_vals,50);
   plot2d(next_x_vals, next_y_vals, "jmt_xy.png");
 
 }

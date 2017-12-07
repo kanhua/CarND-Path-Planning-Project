@@ -287,7 +287,7 @@ vector<double> arange(double lower_bound, double higher_bound, double delta_t) {
     t.push_back(current_t);
     current_t += delta_t;
   }
-
+  t.push_back(higher_bound);
   return t;
 
 }
@@ -310,10 +310,12 @@ void fill_jmt(const vector<double> &map_x,
   double start_x = map_x[1];
   double start_y = map_y[1];
 
+  cout << "start_sd:" << start_x << "," << start_y << endl;
+
   double next_x = map_x[2];
   double next_y = map_y[2];
 
-  for (int i = 2; i < map_x.size() - 1; i++) {
+  for (int i = 2; i < (map_x.size() - 1); i++) {
     vector<double> x_coef;
     vector<double> y_coef;
     double ds;
@@ -334,8 +336,8 @@ void fill_jmt(const vector<double> &map_x,
     new_traj_x.insert(new_traj_x.end(), x.begin(), x.end());
     new_traj_y.insert(new_traj_y.end(), y.begin(), y.end());
 
-    start_x = next_x;
-    start_y = next_y;
+    start_x = new_traj_x[new_traj_x.size() - 1];
+    start_y = new_traj_y[new_traj_y.size() - 1];
 
     next_x = map_x[i + 1];
     next_y = map_y[i + 1];
@@ -666,6 +668,8 @@ void gen_traj_from_jmt(const car_state &cstate,
                               ref_y,
                               ref_yaw);
 
+  cout << "prev points left:" << previous_path_x.size() << endl;
+
 
   //Find the closest index
 
@@ -674,7 +678,7 @@ void gen_traj_from_jmt(const car_state &cstate,
 
   // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
   if (next_lane_number != prev_lane_number) {
-    closest_index++;
+    closest_index;
   }
 
   vector<double> next_map_waypoints_x;
@@ -685,6 +689,8 @@ void gen_traj_from_jmt(const car_state &cstate,
 
   next_map_waypoints_y.push_back(before_next_path_start_y);
   next_map_waypoints_y.push_back(next_path_start_y);
+
+  cout << "start xy value:" << next_path_start_x << "," << next_path_start_y << endl;
 
   gen_next_map_waypoints(map_waypoints_x,
                          map_waypoints_y,
@@ -702,9 +708,16 @@ void gen_traj_from_jmt(const car_state &cstate,
   vector<double> next_map_waypoints_s;
   vector<double> next_map_waypoints_d;
   for (int i = 0; i < next_map_waypoints_x.size(); i++) {
+    double yaw = 0;
+    if (i < 1) yaw = ref_yaw;
+    else
+      yaw = atan2(next_map_waypoints_y[i] - next_map_waypoints_y[i - 1],
+                  next_map_waypoints_x[i] - next_map_waypoints_x[i - 1]);
+
     double &x = next_map_waypoints_x[i];
     double &y = next_map_waypoints_y[i];
-    vector<double> nc = getFrenet(x, y, ref_yaw, map_waypoints_x, map_waypoints_y);
+    //TODO ref_yaw here does not work for all angles
+    vector<double> nc = getFrenet(x, y, yaw, map_waypoints_x, map_waypoints_y);
     next_map_waypoints_s.push_back(nc[0]);
     next_map_waypoints_d.push_back(nc[1]);
 
@@ -741,6 +754,7 @@ void gen_traj_from_jmt(const car_state &cstate,
     next_y_vals[i] = nc[1];
 
   }
+  cout << "last xy value:" << next_x_vals[points_to_generate - 1] << "," << next_y_vals[points_to_generate - 1] << endl;
 
   if (prev_points > 2) {
     next_x_vals.insert(next_x_vals.begin(), previous_path_x.begin(), previous_path_x.end());
@@ -1020,7 +1034,7 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
                     map_waypoints_dy,
                     next_x_vals,
                     next_y_vals,
-                    50,
+                    75,
                     0.02);
 
 }
