@@ -640,7 +640,7 @@ void gen_traj_from_spline(const car_state &cstate, const int state_number, const
 
   // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
   if (next_lane_number != prev_lane_number) {
-    closest_index++;
+    closest_index;
   }
 
   vector<double> next_map_waypoints_x;
