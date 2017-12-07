@@ -410,26 +410,41 @@ double traj_end_eval_state(double delta_t, const vector<double> &next_x_val, con
 car_state guess_next_car_state(const car_state &current_car_state,
                                const double delta_t,
                                const double acc,
-                               const vector<double> &map_x, const vector<double> &map_y, const vector<double> &map_s) {
+                               int next_car_lane,
+                               const vector<double> &map_x,
+                               const vector<double> &map_y,
+                               const vector<double> &map_s) {
+
+  //check input
+  assert (next_car_lane >= -1 && next_car_lane < 3);
+  double lane_width = 4.0;
 
   const double &s = current_car_state.car_s;
   const double &a = acc;
   const double &v0 = current_car_state.car_speed;
 
+  int current_lane = floor(current_car_state.car_d / 4.0);//TODO fix magic number here
+  if (next_car_lane == -1) {
+    next_car_lane = current_lane;
+  }
+
   double final_s = s + v0 * delta_t + 0.5 * acc * pow(delta_t, 2);
 
-  car_state next_carstate;
+  car_state next_car_state;
 
-  vector<double> nc = getXY(final_s, current_car_state.car_d, map_s, map_x, map_y);
+  next_car_state.car_s = final_s;
 
-  next_carstate.car_x = nc[0];
-  next_carstate.car_y = nc[1];
-  next_carstate.car_s = final_s;
-  next_carstate.car_d = current_car_state.car_d;
-  next_carstate.car_yaw = atan2(nc[1] - current_car_state.car_y, nc[0] - current_car_state.car_x);
-  next_carstate.car_speed = v0 + acc * delta_t;
+  next_car_state.car_d = 0.5 * lane_width + lane_width * next_car_lane;
 
-  return next_carstate;
+  vector<double> nc = getXY(next_car_state.car_s, next_car_state.car_d,
+                            map_s, map_x, map_y);
+  next_car_state.car_x = nc[0];
+  next_car_state.car_y = nc[1];
+
+  next_car_state.car_yaw = atan2(nc[1] - current_car_state.car_y, nc[0] - current_car_state.car_x);
+  next_car_state.car_speed = v0 + acc * delta_t;
+
+  return next_car_state;
 
 }
 
@@ -640,7 +655,7 @@ void gen_traj_from_spline(const car_state &cstate, const int state_number, const
 
   // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
   if (next_lane_number != prev_lane_number) {
-    closest_index;
+    closest_index++;
   }
 
   vector<double> next_map_waypoints_x;
@@ -765,6 +780,15 @@ void initialize_reference_points(const car_state &cstate,
   }
 }
 
+vector<double> eval_state_cost(const car_state &cstate,
+                               const vector<vector<double>> &sensor_fusion,
+                               const vector<double> &map_waypoints_x,
+                               const vector<double> &map_waypoints_y,
+                               const vector<double> &map_waypoints_s,
+                               const int lane_width,
+                               const vector<CarStateNum> &state_to_try,
+                               const double delta_t,
+                               const double acceleration);
 void
 gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, const vector<double> &previous_path_y,
               const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
@@ -785,56 +809,19 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
 
   const vector<CarStateNum> state_to_try = state_map[car_lane];
   int num_states = state_to_try.size();
-  //vector<double> state_cost(num_states);
-  //state_cost[0] = -0.01;
-  vector<double> state_cost(num_states);
-
-  for (int i = 0; i < num_states; i++) {
-    state_cost[i] = 0;
-  }
-
-  //state_cost[0]-=0.05;
 
   const double delta_t = 0.2;
   const double acceleration = 6;
 
-  car_state next_car_state;
-  double next_coll_time = 100;
-  for (int i = 0; i < num_states; i++) {
-    if (i == 0) {
-      //evaluate the incumbent state
-      next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
-                                            map_waypoints_s);
-
-    } else if (state_to_try[i] >= 0 && state_to_try[i] <= 2) {
-      //evaluate switching lanes
-      next_car_state = guess_next_car_state(cstate, delta_t, acceleration, map_waypoints_x, map_waypoints_y,
-                                            map_waypoints_s);
-      next_car_state.car_d = 0.5 * lane_width + lane_width * state_to_try[i];
-      vector<double> nc = getXY(next_car_state.car_s, next_car_state.car_d,
-                                map_waypoints_s, map_waypoints_x, map_waypoints_y);
-      next_car_state.car_x = nc[0];
-      next_car_state.car_y = nc[1];
-
-      //Add the cost of switching lanes because of the car in the back of the neighbor lane
-      state_cost[i] += safe_switch(cstate, state_to_try[i], sensor_fusion, lane_width);
-
-    } else if (state_to_try[i] == stopping) {
-      next_car_state = guess_next_car_state(cstate, delta_t, -acceleration, map_waypoints_x, map_waypoints_y,
-                                            map_waypoints_s);
-
-    }
-
-    next_coll_time = eval_next_collision(next_car_state, sensor_fusion, map_waypoints_x, map_waypoints_y,
-                                         lane_width);
-    //assert(next_coll_time > 0);
-
-    //cout << "time to collide of state" << state_to_try[i] << ":" << next_coll_time << endl;
-    //state_cost[i] += eval_cost(next_car_state.car_x, next_car_state.car_y, next_car_state.car_yaw,
-    //                           delta_t, sensor_fusion, map_waypoints_x, map_waypoints_y, lane_width);
-    state_cost[i] += (1 / next_coll_time + 0.05 * (20 - next_car_state.car_speed));
-
-  }
+  vector<double> state_cost = eval_state_cost(cstate,
+                                              sensor_fusion,
+                                              map_waypoints_x,
+                                              map_waypoints_y,
+                                              map_waypoints_s,
+                                              lane_width,
+                                              state_to_try,
+                                              delta_t,
+                                              acceleration);
 
   //print out state cost:
   for (int i = 0; i < num_states; i++) {
@@ -851,6 +838,71 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
                        map_waypoints_x,
                        map_waypoints_y, map_waypoints_dx, map_waypoints_dy, next_x_vals, next_y_vals, 50, 0.02);
 
+}
+vector<double> eval_state_cost(const car_state &cstate,
+                               const vector<vector<double>> &sensor_fusion,
+                               const vector<double> &map_waypoints_x,
+                               const vector<double> &map_waypoints_y,
+                               const vector<double> &map_waypoints_s,
+                               const int lane_width,
+                               const vector<CarStateNum> &state_to_try,
+                               const double delta_t,
+                               const double acceleration) {
+  car_state next_car_state;
+  int num_states = state_to_try.size();
+  vector<double> state_cost(num_states);
+
+  for (int i = 0; i < num_states; i++) {
+    state_cost[i] = 0;
+  }
+
+  double next_coll_time = 100;
+  for (int i = 0; i < num_states; i++) {
+    if (i == 0) {
+      //evaluate the incumbent state
+      next_car_state =
+          guess_next_car_state(cstate,
+                               delta_t,
+                               acceleration,
+                               state_to_try[i],
+                               map_waypoints_x,
+                               map_waypoints_y,
+                               map_waypoints_s);
+
+    } else if (state_to_try[i] >= 0 && state_to_try[i] <= 2) {
+      //evaluate switching lanes
+      next_car_state =
+          guess_next_car_state(cstate,
+                               delta_t,
+                               acceleration,
+                               state_to_try[i],
+                               map_waypoints_x,
+                               map_waypoints_y,
+                               map_waypoints_s);
+
+//Add the cost of switching lanes because of the car in the back of the neighbor lane
+      state_cost[i] += safe_switch(cstate, state_to_try[i], sensor_fusion, lane_width);
+
+    } else if (state_to_try[i] == stopping) {
+      next_car_state =
+          guess_next_car_state(cstate,
+                               delta_t,
+                               -acceleration,
+                               state_to_try[0],
+                               map_waypoints_x,
+                               map_waypoints_y,
+                               map_waypoints_s);
+
+    }
+
+    next_coll_time = eval_next_collision(next_car_state, sensor_fusion, map_waypoints_x, map_waypoints_y,
+                                         lane_width);
+
+//cout << "time to collide of state" << state_to_try[i] << ":" << next_coll_time << endl;
+    state_cost[i] += (1 / next_coll_time + 0.05 * (20 - next_car_state.car_speed));
+
+  }
+  return state_cost;
 }
 
 void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals) {
