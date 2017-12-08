@@ -35,5 +35,5 @@ add_executable(test_ground ${test_ground_sources})
 
 target_link_libraries(path_planning z ssl uv uWS)
 target_link_libraries(test_traj plplotcxx)
-target_link_libraries(test_jmt plplotcxx)
+target_link_libraries(test_jmt plplotcxx z ssl uv uWS)
 target_link_libraries(test_ground plplotcxx)

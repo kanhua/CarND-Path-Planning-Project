@@ -8,14 +8,7 @@
 #endif //PATH_PLANNING_VEHICLE_TRAJ_H
 #include <vector>
 #include <iostream>
-#include "Eigen-3.3/Eigen/Dense"
 #include "spline.h"
-
-
-using namespace std;
-
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
 
 constexpr double pi();
 
@@ -28,11 +21,11 @@ double mph2mps(double x);
 double mps2mph(double x);
 
 struct map_data {
-    vector<double> map_waypoints_x;
-    vector<double> map_waypoints_y;
-    vector<double> map_waypoints_s;
-    vector<double> map_waypoints_dx;
-    vector<double> map_waypoints_dy;
+  std::vector<double> map_waypoints_x;
+  std::vector<double> map_waypoints_y;
+  std::vector<double> map_waypoints_s;
+  std::vector<double> map_waypoints_dx;
+  std::vector<double> map_waypoints_dy;
 
 };
 
@@ -53,56 +46,84 @@ enum CarStateNum {
 };
 
 //The mapping of the state. The first is the incumbent state.
-const vector<vector<CarStateNum>> state_map = {{left_lane, middle_lane, stopping},
-                                               {middle_lane, left_lane, right_lane, stopping},
-                                               {right_lane, middle_lane, stopping}};
+const std::vector<std::vector<CarStateNum>> state_map = {{left_lane, middle_lane, stopping},
+                                                         {middle_lane, left_lane, right_lane, stopping},
+                                                         {right_lane, middle_lane, stopping}};
 
-vector<double> global_to_car(double global_map_x, double global_map_y,
+std::vector<double> arange(double lower_bound, double higher_bound, double delta_t);
+
+std::vector<double> global_to_car(double global_map_x, double global_map_y,
                              double global_car_x, double global_car_y, double car_yaw);
 
-vector<double> car_to_global(double local_map_x, double local_map_y,
-                             double global_car_x, double global_car_y, double car_yaw);
+std::vector<double> car_to_global(double local_map_x, double local_map_y,
+                                  double global_car_x, double global_car_y, double car_yaw);
 
+std::vector<double> JMT(std::vector<double> start, std::vector<double> end, double T);
 
-vector<double> JMT(vector< double> start, vector <double> end, double T);
+void fill_spline(const std::vector<double> &map_x,
+                 const std::vector<double> &map_y,
+                 int points_to_generate,
+                 double desired_speed,
+                 double acceleration,
+                 double car_speed,
+                 double read_in_interval,
+                 std::vector<double> &traj_x,
+                 std::vector<double> &traj_y);
 
-
-void fill_spline(const vector<double> &map_x, const vector<double> &map_y, int points_to_generate, double desired_speed,
-                 double acceleration, double car_speed, double read_in_interval, vector<double> &traj_x,
-                 vector<double> &traj_y);
-
-
-void print_map(const vector<double> &map_x, const vector<double> &map_y, int number);
+void print_map(const std::vector<double> &map_x, const std::vector<double> &map_y, int number);
 
 void
-gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, const vector<double> &previous_path_y,
-              const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
-              const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
-              const vector<double> &map_waypoints_dy, const vector<double> &map_waypoints_s,
-              vector<double> &next_x_vals, vector<double> &next_y_vals);
+gen_next_traj(const car_state &cstate,
+              const std::vector<double> &previous_path_x,
+              const std::vector<double> &previous_path_y,
+              const std::vector<std::vector<double>> &sensor_fusion,
+              const std::vector<double> &map_waypoints_x,
+              const std::vector<double> &map_waypoints_y,
+              const std::vector<double> &map_waypoints_dx,
+              const std::vector<double> &map_waypoints_dy,
+              const std::vector<double> &map_waypoints_s,
+              double end_path_s,
+              double end_path_d,
+              std::vector<double> &next_x_vals,
+              std::vector<double> &next_y_vals);
 
-void fill_jmt(const vector<double> &map_x,
-              const vector<double> &map_y,
+void fit_waypoint_spline(const std::vector<double> &map_waypoints_x, const std::vector<double> &map_waypoints_y,
+                         const std::vector<double> &map_waypoints_s, const std::vector<double> &map_waypoints_dx,
+                         const std::vector<double> &map_waypoints_dy, int start_index, int end_index,
+                         tk::spline &s_x, tk::spline &s_y, tk::spline &s_dx, tk::spline &s_dy);
+
+void fill_jmt(double start_s,
+              double start_d,
               int points_to_generate,
               double desired_speed,
               double car_speed,
-              vector<double> &traj_x,
-              vector<double> &traj_y);
+              std::vector<double> &traj_x,
+              std::vector<double> &traj_y);
 
-vector<double> getXY(double s, double d, const vector<double> &maps_s,
-                     const vector<double> &maps_x, const vector<double> &maps_y);
+std::vector<double> getXY(double s, double d, const std::vector<double> &maps_s,
+                          const std::vector<double> &maps_x, const std::vector<double> &maps_y);
 
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
-vector<double> getFrenet(double x, double y, double theta,
-                         const vector<double> &maps_x, const vector<double> &maps_y);
+std::vector<double> getFrenet(double x, double y, double theta_in_rad,
+                              const std::vector<double> &maps_x, const std::vector<double> &maps_y);
 
-void map_to_car_coords_array(const car_state &cstate, vector<double> &next_map_x, vector<double> &next_map_y);
+void map_to_car_coords_array(const car_state &cstate, std::vector<double> &next_map_x, std::vector<double> &next_map_y);
 
-void car_to_map_cords_array(const car_state &cstate, vector<double> &next_x_vals, vector<double> &next_y_vals);
+void car_to_map_cords_array(const car_state &cstate,
+                            std::vector<double> &next_x_vals,
+                            std::vector<double> &next_y_vals);
 
 double
-eval_cost(double car_x, double car_y, double car_theta, double delta_t, const vector<vector<double>> &sensor_fusion,
-          const vector<double> &map_x, const vector<double> &map_y, const double lane_width);
+eval_cost(double car_x,
+          double car_y,
+          double car_theta,
+          double delta_t,
+          const std::vector<std::vector<double>> &sensor_fusion,
+          const std::vector<double> &map_x,
+          const std::vector<double> &map_y,
+          const double lane_width);
 
-vector<double> fill_poly_traj(vector<double> a_vec, vector<double> t_vec);
+std::vector<double> fill_poly_traj(std::vector<double> a_vec, std::vector<double> t_vec);
+
+

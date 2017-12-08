@@ -3,7 +3,13 @@
 //
 
 
+#include "spline.h"
 #include "vehicle_traj.h"
+#include "Eigen-3.3/Eigen/Dense"
+
+using namespace std;
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
 
 constexpr double pi() { return 3.14159265359; }
 
@@ -31,6 +37,26 @@ double getmin(double x1, double x2) {
   if (x1 < x2) {
     return x1;
   } else return x2;
+}
+
+void fit_waypoint_spline(const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
+                         const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_dx,
+                         const vector<double> &map_waypoints_dy, int start_index, int end_index,
+                         tk::spline &s_x, tk::spline &s_y, tk::spline &s_dx, tk::spline &s_dy) {
+
+
+  //TODO this implementation does not deal with end_index> max_index
+  vector<double> x(map_waypoints_x.begin() + start_index, map_waypoints_x.begin() + end_index);
+  vector<double> y(map_waypoints_y.begin() + start_index, map_waypoints_y.begin() + end_index);
+  vector<double> s(map_waypoints_s.begin() + start_index, map_waypoints_s.begin() + end_index);
+  vector<double> dx(map_waypoints_dx.begin() + start_index, map_waypoints_dx.begin() + end_index);
+  vector<double> dy(map_waypoints_dy.begin() + start_index, map_waypoints_dy.begin() + end_index);
+
+  s_x.set_points(s, x);
+  s_y.set_points(s, y);
+  s_dx.set_points(s, dx);
+  s_dy.set_points(s, dy);
+
 }
 
 int ClosestWaypoint(double x, double y, const vector<double> &maps_x, const vector<double> &maps_y) {
@@ -74,9 +100,9 @@ int NextWaypoint(double x, double y, double theta_in_rad, const vector<double> &
 }
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
-vector<double> getFrenet(double x, double y, double theta,
+vector<double> getFrenet(double x, double y, double theta_in_rad,
                          const vector<double> &maps_x, const vector<double> &maps_y) {
-  int next_wp = NextWaypoint(x, y, theta, maps_x, maps_y);
+  int next_wp = NextWaypoint(x, y, theta_in_rad, maps_x, maps_y);
 
   int prev_wp;
   prev_wp = next_wp - 1;
@@ -292,8 +318,8 @@ vector<double> arange(double lower_bound, double higher_bound, double delta_t) {
 
 }
 
-void fill_jmt(const vector<double> &map_x,
-              const vector<double> &map_y,
+void fill_jmt(double start_s,
+              double start_d,
               int points_to_generate,
               double desired_speed,
               double car_speed,
@@ -303,56 +329,33 @@ void fill_jmt(const vector<double> &map_x,
   const double read_in_interval = 0.02; // time interval between each reading of the simulator
   //double desired_speed=20; // desired speed in m/s
 
-  //For now, use the first section to acc. to the full desired speed
-  vector<double> new_traj_x;
-  vector<double> new_traj_y;
 
-  double start_x = map_x[1];
-  double start_y = map_y[1];
+  cout << "start_sd:" << start_s << "," << start_d << endl;
 
-  cout << "start_sd:" << start_x << "," << start_y << endl;
+  double ds = (points_to_generate + 1) * read_in_interval * desired_speed;
+  double next_x = start_s + ds;
+  double next_y = 6.0;
 
-  double next_x = map_x[2];
-  double next_y = map_y[2];
+  double t_required = ds / desired_speed;
 
-  for (int i = 2; i < (map_x.size() - 1); i++) {
-    vector<double> x_coef;
-    vector<double> y_coef;
-    double ds;
-    double t_required;
+  vector<double> s_coef;
+  vector<double> y_coef;
 
-    ds = sqrt(pow(next_x - start_x, 2) + pow(next_y - start_y, 2));
+  s_coef = JMT({start_s, car_speed, 0}, {next_x, desired_speed, 0}, t_required);
+  y_coef = JMT({start_d, 0, 0}, {next_y, 0, 0}, t_required);
 
-    t_required = ds / ((car_speed + desired_speed) / 2);
+  vector<double> t = arange(0, t_required, read_in_interval);
 
-    x_coef = JMT({start_x, car_speed, 0}, {next_x, desired_speed, 0}, t_required);
-    y_coef = JMT({start_y, 0, 0}, {next_y, 0, 0}, t_required);
+  traj_x = fill_poly_traj(s_coef, t);
+  traj_y = fill_poly_traj(y_coef, t);
 
-    vector<double> t = arange(0, t_required, read_in_interval);
+  vector<double> ntraj_x(traj_x.begin() + 1, traj_x.begin() + points_to_generate + 1);
+  vector<double> ntraj_y(traj_y.begin() + 1, traj_y.begin() + points_to_generate + 1);
 
-    vector<double> x = fill_poly_traj(x_coef, t);
-    vector<double> y = fill_poly_traj(y_coef, t);
+  traj_x = ntraj_x;
+  traj_y = ntraj_y;
 
-    new_traj_x.insert(new_traj_x.end(), x.begin(), x.end());
-    new_traj_y.insert(new_traj_y.end(), y.begin(), y.end());
-
-    start_x = new_traj_x[new_traj_x.size() - 1];
-    start_y = new_traj_y[new_traj_y.size() - 1];
-
-    next_x = map_x[i + 1];
-    next_y = map_y[i + 1];
-
-  }
-
-  traj_x.clear();
-  traj_y.clear();
-
-  for (int i = 0; i < points_to_generate; i++) {
-    traj_x.push_back(new_traj_x[i]);
-    traj_y.push_back(new_traj_y[i]);
-
-  }
-
+  cout << "generated sd:";
   print_map(traj_x, traj_y, points_to_generate);
 
 }
@@ -610,6 +613,8 @@ void gen_traj_from_jmt(const car_state &cstate,
                        const vector<double> &map_waypoints_s,
                        const vector<double> &map_waypoints_dx,
                        const vector<double> &map_waypoints_dy,
+                       double end_path_s,
+                       double end_path_d,
                        vector<double> &next_x_vals,
                        vector<double> &next_y_vals,
                        int total_future_points,
@@ -621,26 +626,10 @@ void gen_traj_from_jmt(const car_state &cstate,
 
   double acceleration = 6;
 
-  double before_next_path_start_x = 0;
-  double before_next_path_start_y = 0;
-
-  double next_path_start_x = 0;
-  double next_path_start_y = 0;
-
-  double ref_x = 0;
-  double ref_y = 0;
-  double ref_yaw = 0;
-
   double desired_speed = 20;
   int next_lane_number = -1;
 
-
-  //Get the map coordinates of the next few points
-  //Assuming staying on the second lane at the moment
-
-  int num_next_index = 6;
-
-  const int lane_width = 4; // the width of the lane
+  const double lane_width = 4.0; // the width of the lane
 
   // Tell which lane that the car currently stays
   // The lane number that the car stays on. The lane next to the center line is zero.
@@ -652,76 +641,37 @@ void gen_traj_from_jmt(const car_state &cstate,
     next_lane_number = prev_lane_number;
   }
 
+  //TODO bad hack
+  next_lane_number = 1;
+
   assert(next_lane_number >= 0 && next_lane_number < 3);
 
   int prev_points = previous_path_x.size();
   assert(previous_path_x.size() == previous_path_y.size());
-  initialize_reference_points(cstate,
-                              prev_points,
-                              previous_path_x,
-                              previous_path_y,
-                              before_next_path_start_x,
-                              before_next_path_start_y,
-                              next_path_start_x,
-                              next_path_start_y,
-                              ref_x,
-                              ref_y,
-                              ref_yaw);
 
   cout << "prev points left:" << previous_path_x.size() << endl;
 
+  //cout << "start xy value:" << next_path_start_x << "," << next_path_start_y << endl;
 
-  //Find the closest index
+  double next_map_waypoints_s;
+  double next_map_waypoints_d;
 
-  int closest_index = NextWaypoint(ref_x, ref_y,
-                                   ref_yaw, map_waypoints_x, map_waypoints_y);
+  if (previous_path_x.size() > 1) {
 
-  // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
-  if (next_lane_number != prev_lane_number) {
-    closest_index;
+    next_map_waypoints_s = end_path_s;
+    next_map_waypoints_d = end_path_d;
+  } else {
+    next_map_waypoints_s = cstate.car_s;
+    next_map_waypoints_d = cstate.car_d;
   }
 
-  vector<double> next_map_waypoints_x;
-  vector<double> next_map_waypoints_y;
 
-  next_map_waypoints_x.push_back(before_next_path_start_x);
-  next_map_waypoints_x.push_back(next_path_start_x);
-
-  next_map_waypoints_y.push_back(before_next_path_start_y);
-  next_map_waypoints_y.push_back(next_path_start_y);
-
-  cout << "start xy value:" << next_path_start_x << "," << next_path_start_y << endl;
-
-  gen_next_map_waypoints(map_waypoints_x,
-                         map_waypoints_y,
-                         map_waypoints_dx,
-                         map_waypoints_dy,
-                         next_lane_number,
-                         num_next_index,
-                         lane_width,
-                         closest_index,
-                         next_map_waypoints_x,
-                         next_map_waypoints_y);
-
-  //convert it to Frenet coordinates
-
-  vector<double> next_map_waypoints_s;
-  vector<double> next_map_waypoints_d;
-  for (int i = 0; i < next_map_waypoints_x.size(); i++) {
-    double yaw = 0;
-    if (i < 1) yaw = ref_yaw;
-    else
-      yaw = atan2(next_map_waypoints_y[i] - next_map_waypoints_y[i - 1],
-                  next_map_waypoints_x[i] - next_map_waypoints_x[i - 1]);
-
-    double &x = next_map_waypoints_x[i];
-    double &y = next_map_waypoints_y[i];
-    //TODO ref_yaw here does not work for all angles
-    vector<double> nc = getFrenet(x, y, yaw, map_waypoints_x, map_waypoints_y);
-    next_map_waypoints_s.push_back(nc[0]);
-    next_map_waypoints_d.push_back(nc[1]);
-
-  }
+  // spline fitting:
+  tk::spline sx, sy, sdx, sdy;
+  sx.set_points(map_waypoints_s, map_waypoints_x);
+  sy.set_points(map_waypoints_s, map_waypoints_y);
+  sdx.set_points(map_waypoints_s, map_waypoints_dx);
+  sdy.set_points(map_waypoints_s, map_waypoints_dy);
 
 
   // Find next points
@@ -744,25 +694,24 @@ void gen_traj_from_jmt(const car_state &cstate,
   fill_jmt(next_map_waypoints_s, next_map_waypoints_d, points_to_generate,
            desired_speed, desired_speed, next_x_vals, next_y_vals);
 
-  // TODO convert it back to global coordinates, dirty and slow implementation
+  for (int i = 0; i < next_x_vals.size(); i++) {
+    double s = next_x_vals[i];
+    double d = next_y_vals[i];
 
-  assert(next_x_vals.size() == points_to_generate);
-  for (int i = 0; i < points_to_generate; i++) {
+    //vector<double> nc=getXY(s,d,map_waypoints_s,map_waypoints_x,map_waypoints_y);
+    //next_x_vals[i]=nc[0];
+    //next_y_vals[i]=nc[1];
 
-    vector<double> nc = getXY(next_x_vals[i], next_y_vals[i], map_waypoints_s, map_waypoints_x, map_waypoints_y);
-    next_x_vals[i] = nc[0];
-    next_y_vals[i] = nc[1];
-
+    next_x_vals[i] = sx(s) + d * sdx(s);
+    next_y_vals[i] = sy(s) + d * sdy(s);
   }
+
   cout << "last xy value:" << next_x_vals[points_to_generate - 1] << "," << next_y_vals[points_to_generate - 1] << endl;
 
   if (prev_points > 2) {
     next_x_vals.insert(next_x_vals.begin(), previous_path_x.begin(), previous_path_x.end());
     next_y_vals.insert(next_y_vals.begin(), previous_path_y.begin(), previous_path_y.end());
   }
-
-  vector<double>().swap(next_map_waypoints_x);
-  vector<double>().swap(next_map_waypoints_y);
 
 }
 
@@ -978,11 +927,19 @@ vector<double> eval_state_cost(const car_state &cstate,
                                const double delta_t,
                                const double acceleration);
 void
-gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, const vector<double> &previous_path_y,
-              const vector<vector<double>> &sensor_fusion, const vector<double> &map_waypoints_x,
-              const vector<double> &map_waypoints_y, const vector<double> &map_waypoints_dx,
-              const vector<double> &map_waypoints_dy, const vector<double> &map_waypoints_s,
-              vector<double> &next_x_vals, vector<double> &next_y_vals) {
+gen_next_traj(const car_state &cstate,
+              const std::vector<double> &previous_path_x,
+              const std::vector<double> &previous_path_y,
+              const std::vector<std::vector<double>> &sensor_fusion,
+              const std::vector<double> &map_waypoints_x,
+              const std::vector<double> &map_waypoints_y,
+              const std::vector<double> &map_waypoints_dx,
+              const std::vector<double> &map_waypoints_dy,
+              const std::vector<double> &map_waypoints_s,
+              double end_path_s,
+              double end_path_d,
+              std::vector<double> &next_x_vals,
+              std::vector<double> &next_y_vals) {
 
   const int lane_width = 4;
   int prev_lane_number = floor(cstate.car_d / lane_width);
@@ -1022,7 +979,25 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
 
   //TODO magic number 50 and 0.02
   cout << "recommended next state:" << state_to_try[min_state_index] << endl;
+
   gen_traj_from_jmt(cstate,
+                    state_to_try[min_state_index],
+                    previous_path_x,
+                    previous_path_y,
+                    sensor_fusion,
+                    map_waypoints_x,
+                    map_waypoints_y,
+                    map_waypoints_s,
+                    map_waypoints_dx,
+                    map_waypoints_dy,
+                    end_path_s,
+                    end_path_d,
+                    next_x_vals,
+                    next_y_vals,
+                    50,
+                    0.02);
+/*
+  gen_traj_from_spline(cstate,
                     state_to_try[min_state_index],
                     previous_path_x,
                     previous_path_y,
@@ -1034,9 +1009,9 @@ gen_next_traj(const car_state &cstate, const vector<double> &previous_path_x, co
                     map_waypoints_dy,
                     next_x_vals,
                     next_y_vals,
-                    75,
+                    50,
                     0.02);
-
+*/
 }
 vector<double> eval_state_cost(const car_state &cstate,
                                const vector<vector<double>> &sensor_fusion,

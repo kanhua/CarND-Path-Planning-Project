@@ -2,13 +2,18 @@
 // Created by Kan-Hua Lee on 2017/11/09.
 //
 
-#include <iostream>
-#include <vector>
 #include <fstream>
 #include <sstream>
+
 #include "plstream.h"
+//#include "spline.h"
 #include "vehicle_traj.h"
-#include "spline.h"
+#include "Eigen-3.3/Eigen/Dense"
+
+using namespace std;
+
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
 
 void plot2d(const vector<double> &x, const vector<double> &y, const char *filename) {
   plstream *pls;
@@ -133,6 +138,26 @@ void switch_lane() {
 
 }
 
+void fit_waypoint_spline2(const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
+                          const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_dx,
+                          const vector<double> &map_waypoints_dy, int start_index, int end_index,
+                          tk::spline &s_x, tk::spline &s_y, tk::spline &s_dx, tk::spline &s_dy) {
+
+
+  //TODO this implementation does not deal with end_index> max_index
+  vector<double> x(map_waypoints_x.begin() + start_index, map_waypoints_x.begin() + end_index);
+  vector<double> y(map_waypoints_y.begin() + start_index, map_waypoints_y.begin() + end_index);
+  vector<double> s(map_waypoints_s.begin() + start_index, map_waypoints_s.begin() + end_index);
+  vector<double> dx(map_waypoints_dx.begin() + start_index, map_waypoints_dx.begin() + end_index);
+  vector<double> dy(map_waypoints_dy.begin() + start_index, map_waypoints_dy.begin() + end_index);
+
+  s_x.set_points(s, x);
+  s_y.set_points(s, y);
+  s_dx.set_points(s, dx);
+  s_dy.set_points(s, dy);
+
+}
+
 void start_up() {
   vector<double> map_waypoints_x;
   vector<double> map_waypoints_y;
@@ -147,36 +172,60 @@ void start_up() {
 
   way_s.insert(way_s.begin(), map_waypoints_s.begin(), map_waypoints_s.begin() + 50);
 
+  tk::spline sx;
+  tk::spline sy;
+  tk::spline sdx;
+  tk::spline sdy;
+
+  fill_poly_traj({0, 1}, {0, 1});
+
+  fit_waypoint_spline2(map_waypoints_x,
+                       map_waypoints_y,
+                       map_waypoints_s,
+                       map_waypoints_dx,
+                       map_waypoints_dy,
+                       0,
+                       5,
+                       sx,
+                       sy,
+                       sdx,
+                       sdy);
+
+
   for (int i = 0; i < way_s.size(); i++) way_d.push_back(6);
 
-  vector<double> next_s_vals;
-  vector<double> next_d_vals;
+  vector<double> test_s = arange(way_s[0], way_s[4], 0.1);
+
+  vector<double> next_x_vals;
+  vector<double> next_y_vals;
+  for (int i = 0; i < test_s.size(); i++) {
+    double &s = test_s[i];
+    next_x_vals.push_back(sx(s) + 6 * sdx(s));
+    next_y_vals.push_back(sy(s) + 6 * sdy(s));
+  }
+
+
+
 
   int points_to_generate = 200;
 
-  fill_jmt(way_s, way_d, points_to_generate, 20, 20, next_s_vals, next_d_vals);
+  vector<double> time(next_x_vals.size());
 
-  vector<double> next_x_vals(points_to_generate);
-  vector<double> next_y_vals(points_to_generate);
-
-  for (int i = 0; i < points_to_generate; i++) {
-
-    vector<double> nc = getXY(next_s_vals[i], next_d_vals[i], map_waypoints_s, map_waypoints_x, map_waypoints_y);
-    next_x_vals[i] = nc[0];
-    next_y_vals[i] = nc[1];
-
-  }
-  vector<double> time(next_s_vals.size());
-  assert(next_x_vals.size() == points_to_generate);
-
-  for (int i = 0; i < next_s_vals.size(); i++) {
+  for (int i = 0; i < next_x_vals.size(); i++) {
     time[i] = i;
   }
 
-  plot2d(time, next_s_vals, "jmt_st.png");
+  plot2d(time, next_x_vals, "jmt_st.png");
 
   //print_map(next_s_vals,next_d_vals,50);
   plot2d(next_x_vals, next_y_vals, "jmt_xy.png");
+  vector<double> map_x(map_waypoints_x.begin(), map_waypoints_x.begin() + 10);
+  vector<double> map_y(map_waypoints_y.begin(), map_waypoints_y.begin() + 10);
+  vector<double> map_s(map_waypoints_s.begin(), map_waypoints_s.begin() + 10);
+  vector<double> map_dx(map_waypoints_dx.begin(), map_waypoints_dx.begin() + 10);
+  plot2d(map_x, map_y,
+         "jmt_origxy.png");
+  plot2d(map_s, map_dx, "s_dx_fig.png");
 
 }
 
