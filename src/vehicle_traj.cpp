@@ -332,11 +332,11 @@ void fill_jmt(double start_s,
 
   cout << "start_sd:" << start_s << "," << start_d << endl;
 
-  double ds = (points_to_generate + 1) * read_in_interval * desired_speed;
+  double t_required = points_to_generate * read_in_interval;
+  double ds = t_required * desired_speed;
   double next_x = start_s + ds;
-  double next_y = 6.0;
+  double next_y = start_d;
 
-  double t_required = ds / desired_speed;
 
   vector<double> s_coef;
   vector<double> y_coef;
@@ -624,6 +624,9 @@ void gen_traj_from_jmt(const car_state &cstate,
   assert(next_x_vals.size() == 0);
   assert(next_y_vals.size() == 0);
 
+  static double s_end_path_s = 0;
+  static double s_end_path_d = 0;
+
   double acceleration = 6;
 
   double desired_speed = 20;
@@ -658,8 +661,8 @@ void gen_traj_from_jmt(const car_state &cstate,
 
   if (previous_path_x.size() > 1) {
 
-    next_map_waypoints_s = end_path_s;
-    next_map_waypoints_d = end_path_d;
+    next_map_waypoints_s = s_end_path_s;
+    next_map_waypoints_d = s_end_path_d;
   } else {
     next_map_waypoints_s = cstate.car_s;
     next_map_waypoints_d = cstate.car_d;
@@ -694,6 +697,10 @@ void gen_traj_from_jmt(const car_state &cstate,
   fill_jmt(next_map_waypoints_s, next_map_waypoints_d, points_to_generate,
            desired_speed, desired_speed, next_x_vals, next_y_vals);
 
+  s_end_path_s = next_x_vals[next_x_vals.size() - 1];
+  s_end_path_d = next_y_vals[next_y_vals.size() - 1];
+
+  cout << "last sd value:" << next_x_vals[next_x_vals.size() - 1] << "," << next_y_vals[next_y_vals.size() - 1] << endl;
   for (int i = 0; i < next_x_vals.size(); i++) {
     double s = next_x_vals[i];
     double d = next_y_vals[i];
@@ -706,7 +713,6 @@ void gen_traj_from_jmt(const car_state &cstate,
     next_y_vals[i] = sy(s) + d * sdy(s);
   }
 
-  cout << "last xy value:" << next_x_vals[points_to_generate - 1] << "," << next_y_vals[points_to_generate - 1] << endl;
 
   if (prev_points > 2) {
     next_x_vals.insert(next_x_vals.begin(), previous_path_x.begin(), previous_path_x.end());
