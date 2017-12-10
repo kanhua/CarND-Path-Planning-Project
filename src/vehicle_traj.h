@@ -93,10 +93,11 @@ void fit_waypoint_spline(const std::vector<double> &map_waypoints_x, const std::
                          tk::spline &s_x, tk::spline &s_y, tk::spline &s_dx, tk::spline &s_dy);
 
 void fill_jmt(double start_s,
+              double v_i,
+              double v_F,
               double start_d,
+              double end_d,
               int points_to_generate,
-              double desired_speed,
-              double car_speed,
               std::vector<double> &traj_x,
               std::vector<double> &traj_y);
 
