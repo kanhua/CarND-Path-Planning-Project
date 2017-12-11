@@ -2,6 +2,7 @@
 // Created by Kan-Hua Lee on 2017/12/11.
 //
 #include <iostream>
+#include "spdlog/spdlog.h"
 #include "util.h"
 
 double pi() { return 3.14159265359; }
@@ -66,6 +67,22 @@ void print_map(const std::vector<double> &map_x, const std::vector<double> &map_
   std::cout << "map:value" << std::endl;
   for (int i = 0; i < number_to_print; i++) {
     std::cout << map_x[i] << "," << map_y[i] << std::endl;
+  }
+
+}
+
+void log_map(std::shared_ptr<spdlog::logger> spdlogger,
+             const std::vector<double> &map_x,
+             const std::vector<double> &map_y,
+             int number) {
+  unsigned int number_to_print;
+  if (number == -1) number_to_print = map_x.size();
+  else {
+    number_to_print = number;
+  }
+
+  for (int i = 0; i < number_to_print; i++) {
+    spdlogger->info("{:03.2f},{:03.2f}", map_x[i], map_y[i]);
   }
 
 }

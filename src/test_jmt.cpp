@@ -9,6 +9,7 @@
 //#include "spline.h"
 #include "vehicle_traj.h"
 #include "Eigen-3.3/Eigen/Dense"
+#include "spdlog/spdlog.h"
 
 using namespace std;
 
@@ -265,5 +266,18 @@ void load_map(vector<double> &map_waypoints_x,
 
 int main() {
   start_up();
+
+  auto console = spdlog::stdout_color_mt("console");
+
+  vector<double> a = {0, 1, 2};
+  vector<double> b = {0, 1, 2};
+
+  //spdlog::set_pattern("%v");
+  console->set_pattern("%v");
+
+  log_map(console, a, b, -1);
+
+
   return 0;
+
 }

@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <cmath>
+#include "spdlog/spdlog.h"
 
 double pi();
 double deg2rad(double x);
@@ -31,6 +32,8 @@ std::vector<double> arange_pt(double lower_bound, int num_points, double interva
 
 void print_map(const std::vector<double> &map_x, const std::vector<double> &map_y, int number);
 
+void log_map(std::shared_ptr<spdlog::logger> spdlogger, const std::vector<double> &map_x,
+             const std::vector<double> &map_y, int number);
 
 
 
