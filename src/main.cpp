@@ -9,7 +9,6 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "json.hpp"
 #include "spline.h"
-//#include "util.h"
 #include "vehicle_traj.h"
 
 using namespace std;

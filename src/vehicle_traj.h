@@ -9,16 +9,10 @@
 #include <vector>
 #include <iostream>
 #include "spline.h"
+#include "util.h"
 
-constexpr double pi();
+const double SPEEDLIMIT = 21.5;
 
-double deg2rad(double x);
-
-double rad2deg(double x);
-
-double mph2mps(double x);
-
-double mps2mph(double x);
 
 struct map_data {
   std::vector<double> map_waypoints_x;
@@ -70,7 +64,6 @@ void fill_spline(const std::vector<double> &map_x,
                  std::vector<double> &traj_x,
                  std::vector<double> &traj_y);
 
-void print_map(const std::vector<double> &map_x, const std::vector<double> &map_y, int number);
 
 void
 gen_next_traj(const car_state &cstate,
@@ -98,8 +91,8 @@ void fill_jmt(double start_s,
               double start_d,
               double end_d,
               int points_to_generate,
-              std::vector<double> &traj_x,
-              std::vector<double> &traj_y);
+              std::vector<double> &traj_s,
+              std::vector<double> &traj_d);
 
 std::vector<double> getXY(double s, double d, const std::vector<double> &maps_s,
                           const std::vector<double> &maps_x, const std::vector<double> &maps_y);
