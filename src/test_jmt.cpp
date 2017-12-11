@@ -265,9 +265,11 @@ void load_map(vector<double> &map_waypoints_x,
 }
 
 int main() {
-  start_up();
+  //start_up();
 
   auto console = spdlog::stdout_color_mt("console");
+  auto sd_logger = spdlog::basic_logger_mt("sd_logger", "sd_log.txt");
+  sd_logger->info("start of the message");
 
   vector<double> a = {0, 1, 2};
   vector<double> b = {0, 1, 2};
@@ -275,7 +277,7 @@ int main() {
   //spdlog::set_pattern("%v");
   console->set_pattern("%v");
 
-  log_map(console, a, b, -1);
+  log_map(sd_logger, a, b, -1);
 
 
   return 0;

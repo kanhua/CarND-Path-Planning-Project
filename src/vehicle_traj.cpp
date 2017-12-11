@@ -2,7 +2,7 @@
 // Created by Kan-Hua Lee on 2017/11/04.
 //
 
-
+#include <fstream>
 #include "spline.h"
 #include "vehicle_traj.h"
 #include "Eigen-3.3/Eigen/Dense"
@@ -145,53 +145,7 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
 
 }
 
-vector<double> JMT(vector<double> start, vector<double> end, double T) {
-  /*
-  Calculate the Jerk Minimizing Trajectory that connects the initial state
-  to the final state in time T.
 
-  INPUTS
-
-  start - the vehicles start location given as a length three array
-      corresponding to initial values of [s, s_dot, s_double_dot]
-
-  end   - the desired end state for vehicle. Like "start" this is a
-      length three array.
-
-  T     - The duration, in seconds, over which this maneuver should occur.
-
-  OUTPUT
-  an array of length 6, each value corresponding to a coefficent in the polynomial
-  s(t) = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 * t**5
-
-  EXAMPLE
-
-  > JMT( [0, 10, 0], [10, 10, 0], 1)
-  [0.0, 10.0, 0.0, 0.0, 0.0, 0.0]
-  */
-
-  MatrixXd A = MatrixXd(3, 3);
-  A << T * T * T, T * T * T * T, T * T * T * T * T,
-      3 * T * T, 4 * T * T * T, 5 * T * T * T * T,
-      6 * T, 12 * T * T, 20 * T * T * T;
-
-  MatrixXd B = MatrixXd(3, 1);
-  B << end[0] - (start[0] + start[1] * T + .5 * start[2] * T * T),
-      end[1] - (start[1] + start[2] * T),
-      end[2] - start[2];
-
-  MatrixXd Ai = A.inverse();
-
-  MatrixXd C = Ai * B;
-
-  vector<double> result = {start[0], start[1], .5 * start[2]};
-  for (int i = 0; i < C.size(); i++) {
-    result.push_back(C.data()[i]);
-  }
-
-  return result;
-
-}
 
 /// Do the spline fitting from map_x and map_y. This procedure takes into account the car_speed,
 /// desired_speed and acceleration to generate the trajectory.
@@ -264,19 +218,7 @@ void fill_spline(const vector<double> &map_x, const vector<double> &map_y, int p
 
 }
 
-vector<double> fill_poly_traj(vector<double> a_vec, vector<double> t_vec) {
-  vector<double> s_traj(t_vec.size());
 
-  for (int i = 0; i < t_vec.size(); i++) {
-    double s = 0;
-    for (int j = 0; j < a_vec.size(); j++) {
-      s += a_vec[j] * pow(t_vec[i], j);
-    }
-    s_traj[i] = s;
-
-  }
-  return s_traj;
-}
 
 void fill_jmt(double start_s,
               double v_i,
@@ -332,7 +274,16 @@ void fill_jmt(double start_s,
   traj_d = ntraj_y;
 
   cout << "generated sd:";
-  print_map(traj_s, traj_d, points_to_generate);
+  //print_map(traj_s, traj_d, points_to_generate);
+
+  //spdlog
+  //static auto sdlog=spdlog::basic_logger_mt("sd_logger","sd_log.txt");
+  log_map(spdlog::get("sd_logger"), traj_s, traj_d, points_to_generate);
+
+  //static ofstream fout("log.txt");
+
+  //fout << "fill_jmt" <<endl;
+
 
 }
 

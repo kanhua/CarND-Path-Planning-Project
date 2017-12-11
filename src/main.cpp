@@ -10,6 +10,7 @@
 #include "json.hpp"
 #include "spline.h"
 #include "vehicle_traj.h"
+#include "spdlog/spdlog.h"
 
 using namespace std;
 
@@ -32,6 +33,13 @@ string hasData(string s) {
 }
 
 int main() {
+  //auto sd_logger=spdlog::stdout_color_mt("console");
+  //sd_logger->set_level(spdlog::level::info);
+  //spdlog::get("sd_logger")->info("start of the message");
+  //sd_logger->set_pattern("%v");
+  //spdlog::drop("sd_logger");
+
+
   uWS::Hub h;
 
   map_data default_map_data;
@@ -68,6 +76,15 @@ int main() {
     map_waypoints_dx.push_back(d_x);
     map_waypoints_dy.push_back(d_y);
   }
+
+
+  //Add spdlog
+
+  auto sd_logger = spdlog::basic_logger_mt("sd_logger", "sd_log_2.txt");
+
+  //auto console_logger=spdlog::stdout_color_mt("console");
+  //console_logger->info("start!");
+
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
                   &map_waypoints_dx, &map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -118,6 +135,7 @@ int main() {
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
+          //spdlog::get("sd_logger")->info("program start");
           cout << "end path sd: " << end_path_s << "," << end_path_d << endl;
           gen_next_traj(current_car_state,
                         previous_path_x,
@@ -193,4 +211,5 @@ int main() {
     return -1;
   }
   h.run();
+
 }
