@@ -394,7 +394,7 @@ car_state guess_next_car_state(const car_state &current_car_state,
 
 /// Check if the car can switch lane to target_lane_num safely
 /// \param curent_car_state
-/// \param target_lane_num the lane m
+/// \param target_lane_num The lane number that the car wants to switch to
 /// \param sensor_fusion
 /// \param lane_width
 /// \return
@@ -436,11 +436,11 @@ double safe_switch(const car_state &curent_car_state, const int target_lane_num,
 
 /// Calculate the time required for the car to hit the car in the front,
 /// assuming that both the car and the car in the front drive in constant speed.
-/// \param curent_car_state
+/// \param curent_car_state The current state of the car
 /// \param sensor_fusion
 /// \param map_x
 /// \param map_y
-/// \param lane_width
+/// \param lane_width Width of the lane
 /// \return the required time in seconds
 double eval_next_collision(car_state curent_car_state, const vector<vector<double>> &sensor_fusion,
                            const vector<double> &map_x, const vector<double> &map_y, const double lane_width) {
@@ -841,6 +841,19 @@ void gen_next_map_waypoints(const vector<double> &map_waypoints_x,
 
   }
 }
+
+/// Set the starting point of the next generated path
+/// \param cstate
+/// \param previous_path_x
+/// \param previous_path_y
+/// \param before_next_path_start_x
+/// \param before_next_path_start_y
+/// \param next_path_start_x
+/// \param next_path_start_y
+/// \param ref_x
+/// \param ref_y
+/// \param ref_yaw
+/// \param ref_speed
 void initialize_reference_points(const car_state &cstate,
                                  const vector<double> &previous_path_x,
                                  const vector<double> &previous_path_y,
@@ -851,8 +864,7 @@ void initialize_reference_points(const car_state &cstate,
                                  double &ref_x,
                                  double &ref_y,
                                  double &ref_yaw,
-                                 double &ref_speed) {// Set the starting point of the next generated path
-
+                                 double &ref_speed) {
 
   int prev_points = previous_path_x.size();
   assert(previous_path_x.size() == previous_path_y.size());
