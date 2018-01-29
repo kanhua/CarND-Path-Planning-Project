@@ -24,7 +24,7 @@ My path planning algorithm is based on the [finite-state machine](https://en.wik
 - Staying on the left lane
 - Stopping
 
-In the first three states. the car will try to reach the desired speed (44 MPH or 20/ms). Therefore, this implementation does not have explicit state for acceleration process.
+In the first three states. the car will try to reach the desired speed (44 MPH or 20 m/s). Therefore, this implementation does not have explicit state for acceleration process.
 At an instant, the car reads the car's localization and the sensor fusion data to determine whether is should staying on its lane, switch to a adjacent lane, or reduce its speed.
 
 

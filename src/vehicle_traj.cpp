@@ -7,6 +7,7 @@
 #include "vehicle_traj.h"
 #include "Eigen-3.3/Eigen/Dense"
 #include "util.h"
+#include "jmt.h"
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -231,7 +232,7 @@ void fill_jmt(double start_s,
 
   assert(points_to_generate > 0);
   const double read_in_interval = 0.02; // time interval between each reading of the simulator
-  const double a_max = 3;
+  const double a_max = 8;
 
   //cout << "start_sd:" << start_s << "," << start_d << endl;
 
@@ -256,16 +257,23 @@ void fill_jmt(double start_s,
 
   cout << "calculate final car speed (v_f):" << final_v << endl;
 
-  vector<double> s_coef;
-  vector<double> d_coef;
+  vector<double> s_coef, sp_coef, spp_coef;
+  vector<double> d_coef, dp_coef, dpp_coef;
 
-  s_coef = JMT({start_s, v_i, a}, {end_s, final_v, a}, delta_t);
-  d_coef = JMT({start_d, 0, 0}, {end_d, 0, 0}, delta_t);
+  full_coef_JMT({start_s, v_i, a}, {end_s, final_v, a}, delta_t, s_coef, sp_coef, spp_coef);
+  full_coef_JMT({start_d, 0, 0}, {end_d, 0, 0}, delta_t, d_coef, dp_coef, dpp_coef);
+
 
   vector<double> t = arange_pt(0, points_to_generate, read_in_interval);
 
   traj_s = fill_poly_traj(s_coef, t);
   traj_d = fill_poly_traj(d_coef, t);
+
+  vector<double> traj_sp = fill_poly_traj(sp_coef, t);
+  vector<double> traj_spp = fill_poly_traj(spp_coef, t);
+
+  vector<double> traj_dp = fill_poly_traj(dp_coef, t);
+  vector<double> traj_dpp = fill_poly_traj(dpp_coef, t);
 
   vector<double> ntraj_x(traj_s.begin() + 1, traj_s.begin() + points_to_generate + 1);
   vector<double> ntraj_y(traj_d.begin() + 1, traj_d.begin() + points_to_generate + 1);
@@ -273,17 +281,16 @@ void fill_jmt(double start_s,
   traj_s = ntraj_x;
   traj_d = ntraj_y;
 
-  cout << "generated sd:";
-  //print_map(traj_s, traj_d, points_to_generate);
 
-  //spdlog
-  //static auto sdlog=spdlog::basic_logger_mt("sd_logger","sd_log.txt");
-  log_map(spdlog::get("sd_logger"), traj_s, traj_d, points_to_generate);
+  // write the calculated trajectory to a file for debugging
+  static ofstream fout("jmt_traj_log.txt");
+  static unsigned int iteration = 0;
 
-  //static ofstream fout("log.txt");
+  for (int i = 0; i < points_to_generate; i++) {
+    fout << iteration << "," << traj_s[i] << "," << traj_sp[i] << "," << traj_spp[i] << endl;
+  }
 
-  //fout << "fill_jmt" <<endl;
-
+  iteration++;
 
 }
 
@@ -335,6 +342,15 @@ double traj_end_eval_state(double delta_t, const vector<double> &next_x_val, con
 
 }
 
+/// Predicit the state of the car after delta_t with given acceleration
+/// \param current_car_state
+/// \param delta_t
+/// \param acc
+/// \param next_car_lane
+/// \param map_x
+/// \param map_y
+/// \param map_s
+/// \return
 car_state guess_next_car_state(const car_state &current_car_state,
                                const double delta_t,
                                const double acc,
@@ -376,6 +392,12 @@ car_state guess_next_car_state(const car_state &current_car_state,
 
 }
 
+/// Check if the car can switch lane to target_lane_num safely
+/// \param curent_car_state
+/// \param target_lane_num the lane m
+/// \param sensor_fusion
+/// \param lane_width
+/// \return
 double safe_switch(const car_state &curent_car_state, const int target_lane_num,
                    const vector<vector<double>> &sensor_fusion,
                    const double lane_width) {
@@ -412,6 +434,14 @@ double safe_switch(const car_state &curent_car_state, const int target_lane_num,
 
 }
 
+/// Calculate the time required for the car to hit the car in the front,
+/// assuming that both the car and the car in the front drive in constant speed.
+/// \param curent_car_state
+/// \param sensor_fusion
+/// \param map_x
+/// \param map_y
+/// \param lane_width
+/// \return the required time in seconds
 double eval_next_collision(car_state curent_car_state, const vector<vector<double>> &sensor_fusion,
                            const vector<double> &map_x, const vector<double> &map_y, const double lane_width) {
 
@@ -924,6 +954,7 @@ gen_next_traj(const car_state &cstate,
   cout << "recommended next state:" << state_to_try[min_state_index] << endl;
 
   if (previous_path_x.size() < 50) {
+    //Only genereate the trajectory points when not enough trajectory points in the buffer
     gen_traj_from_jmt(cstate,
                       state_to_try[min_state_index],
                       previous_path_x,
@@ -959,6 +990,17 @@ gen_next_traj(const car_state &cstate,
                     0.02);
 */
 }
+/// Evaluate the cost of the next possible states
+/// \param cstate
+/// \param sensor_fusion
+/// \param map_waypoints_x
+/// \param map_waypoints_y
+/// \param map_waypoints_s
+/// \param lane_width
+/// \param state_to_try
+/// \param delta_t
+/// \param acceleration
+/// \return a vector of cost of each state
 vector<double> eval_state_cost(const car_state &cstate,
                                const vector<vector<double>> &sensor_fusion,
                                const vector<double> &map_waypoints_x,

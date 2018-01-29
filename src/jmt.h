@@ -17,3 +17,5 @@ std::vector<double> JMT(std::vector<double> start, std::vector<double> end, doub
 
 std::vector<double> fill_poly_traj(std::vector<double> a_vec, std::vector<double> t_vec);
 
+void full_coef_JMT(std::vector<double> start, std::vector<double> end, double T,
+                   std::vector<double> &x_coef, std::vector<double> &v_coef, std::vector<double> &a_coef);

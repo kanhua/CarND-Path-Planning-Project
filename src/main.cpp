@@ -77,10 +77,10 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+  in_map_.close();
 
   //Add spdlog
 
-  auto sd_logger = spdlog::basic_logger_mt("sd_logger", "sd_log_2.txt");
 
   //auto console_logger=spdlog::stdout_color_mt("console");
   //console_logger->info("start!");
@@ -135,8 +135,6 @@ int main() {
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
-          //spdlog::get("sd_logger")->info("program start");
-          cout << "end path sd: " << end_path_s << "," << end_path_d << endl;
           gen_next_traj(current_car_state,
                         previous_path_x,
                         previous_path_y,
@@ -157,7 +155,6 @@ int main() {
 
           //print_map(next_x_vals, next_y_vals, 10);
 
-          // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
