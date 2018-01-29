@@ -985,6 +985,7 @@ gen_next_traj(const car_state &cstate,
     next_x_vals = previous_path_x;
     next_y_vals = previous_path_y;
   }
+
 /*
   gen_traj_from_spline(cstate,
                     state_to_try[min_state_index],
