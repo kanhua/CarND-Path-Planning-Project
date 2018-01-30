@@ -1095,9 +1095,9 @@ vector<double> eval_state_cost(const car_state &cstate,
 
 
     double coll_inv = 1 / next_coll_time;
-    if (i != 0 || state_to_try[i] != stopping) {
-      coll_inv += 0.2;
-    }
+    //if (i != 0 || state_to_try[i] != stopping) {
+    //  coll_inv += 0.2;
+    //}
 
     state_cost[i] += (coll_inv + 0.05 * (20 - next_car_state.car_speed));
 
