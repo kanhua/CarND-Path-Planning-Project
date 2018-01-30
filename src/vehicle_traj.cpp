@@ -539,10 +539,13 @@ void gen_next_map_waypoints_by_wpindex(const vector<double> &map_waypoints_x,
                                        const vector<double> &map_waypoints_y,
                                        const vector<double> &map_waypoints_dx,
                                        const vector<double> &map_waypoints_dy,
+                                       int prev_lane_number,
                                        int next_lane_number,
                                        int num_next_index,
                                        const int lane_width,
-                                       int closest_index,
+                                       double ref_x,
+                                       double ref_y,
+                                       double ref_yaw,
                                        vector<double> &next_map_waypoints_x,
                                        vector<double> &next_map_waypoints_y);
 
@@ -677,6 +680,16 @@ void gen_traj_from_jmt(const car_state &cstate,
 
 }
 
+void gen_next_map_waypoints_by_interp(const vector<double> &map_waypoints_x,
+                                      const vector<double> &map_waypoints_y,
+                                      const vector<double> &map_waypoints_s,
+                                      double ref_x,
+                                      double ref_y,
+                                      double ref_yaw,
+                                      int next_lane_number,
+                                      const int lane_width,
+                                      vector<double> &next_map_waypoints_x,
+                                      vector<double> &next_map_waypoints_y);
 void gen_traj_from_spline(const car_state &cstate,
                           const int state_number,
                           const vector<double> &previous_path_x,
@@ -749,15 +762,7 @@ void gen_traj_from_spline(const car_state &cstate,
                               ref_speed);
 
 
-  //Find the closest index
 
-  int closest_index = NextWaypoint(ref_x, ref_y,
-                                   ref_yaw, map_waypoints_x, map_waypoints_y);
-
-  // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
-  if (next_lane_number != prev_lane_number) {
-    closest_index++;
-  }
 
   vector<double> next_map_waypoints_x;
   vector<double> next_map_waypoints_y;
@@ -768,26 +773,31 @@ void gen_traj_from_spline(const car_state &cstate,
   next_map_waypoints_y.push_back(before_next_path_start_y);
   next_map_waypoints_y.push_back(next_path_start_y);
 
-  vector<double> sd = getFrenet(ref_x, ref_y, ref_yaw, map_waypoints_x, map_waypoints_y);
+  gen_next_map_waypoints_by_interp(map_waypoints_x,
+                                   map_waypoints_y,
+                                   map_waypoints_s,
+                                   ref_x,
+                                   ref_y,
+                                   ref_yaw,
+                                   next_lane_number,
+                                   lane_width,
+                                   next_map_waypoints_x,
+                                   next_map_waypoints_y);
 
-  for (int i = 0; i < 3; i++) {
-    vector<double> xy = getXY(sd[0] + 30 * (i + 1), (next_lane_number + 0.5) * lane_width,
-                              map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
-    next_map_waypoints_x.push_back(xy[0]);
-    next_map_waypoints_y.push_back(xy[1]);
-
-  }
 
   /*
   gen_next_map_waypoints_by_wpindex(map_waypoints_x,
                                     map_waypoints_y,
                                     map_waypoints_dx,
                                     map_waypoints_dy,
+                                    prev_lane_number,
                                     next_lane_number,
                                     num_next_index,
                                     lane_width,
-                                    closest_index,
+                                    ref_x,
+                                    ref_y,
+                                    ref_yaw,
                                     next_map_waypoints_x,
                                     next_map_waypoints_y);
                                     */
@@ -836,16 +846,53 @@ void gen_traj_from_spline(const car_state &cstate,
   vector<double>().swap(next_map_waypoints_y);
 
 }
+void gen_next_map_waypoints_by_interp(const vector<double> &map_waypoints_x,
+                                      const vector<double> &map_waypoints_y,
+                                      const vector<double> &map_waypoints_s,
+                                      double ref_x,
+                                      double ref_y,
+                                      double ref_yaw,
+                                      int next_lane_number,
+                                      const int lane_width,
+                                      vector<double> &next_map_waypoints_x,
+                                      vector<double> &next_map_waypoints_y) {
+  vector<double> sd = getFrenet(ref_x, ref_y, ref_yaw, map_waypoints_x, map_waypoints_y);
+
+  for (int i = 0; i < 3; i++) {
+    vector<double> xy = getXY(sd[0] + 30 * (i + 1), (next_lane_number + 0.5) * lane_width,
+                              map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+    next_map_waypoints_x.push_back(xy[0]);
+    next_map_waypoints_y.push_back(xy[1]);
+
+  }
+}
 void gen_next_map_waypoints_by_wpindex(const vector<double> &map_waypoints_x,
                                        const vector<double> &map_waypoints_y,
                                        const vector<double> &map_waypoints_dx,
                                        const vector<double> &map_waypoints_dy,
+                                       int prev_lane_number,
                                        int next_lane_number,
                                        int num_next_index,
                                        const int lane_width,
-                                       int closest_index,
+                                       double ref_x,
+                                       double ref_y,
+                                       double ref_yaw,
                                        vector<double> &next_map_waypoints_x,
                                        vector<double> &next_map_waypoints_y) {// Construct the array for spline fitting
+
+  //Find the closest index
+
+  int closest_index = NextWaypoint(ref_x, ref_y,
+                                   ref_yaw, map_waypoints_x, map_waypoints_y);
+
+  // Use the next index to start if changing lane. This is to avoid the instability when switching lanes
+  if (next_lane_number != prev_lane_number) {
+    closest_index++;
+  }
+
+
+
   for (int i = 0; i < num_next_index; i++) {
     int waypoints_index = (closest_index + i) % map_waypoints_x.size();
 
