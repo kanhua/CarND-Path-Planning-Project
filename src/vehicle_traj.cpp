@@ -535,16 +535,16 @@ void initialize_reference_points(const car_state &cstate,
                                  double &ref_yaw,
                                  double &ref_speed);
 
-void gen_next_map_waypoints(const vector<double> &map_waypoints_x,
-                            const vector<double> &map_waypoints_y,
-                            const vector<double> &map_waypoints_dx,
-                            const vector<double> &map_waypoints_dy,
-                            int next_lane_number,
-                            int num_next_index,
-                            const int lane_width,
-                            int closest_index,
-                            vector<double> &next_map_waypoints_x,
-                            vector<double> &next_map_waypoints_y);
+void gen_next_map_waypoints_by_wpindex(const vector<double> &map_waypoints_x,
+                                       const vector<double> &map_waypoints_y,
+                                       const vector<double> &map_waypoints_dx,
+                                       const vector<double> &map_waypoints_dy,
+                                       int next_lane_number,
+                                       int num_next_index,
+                                       const int lane_width,
+                                       int closest_index,
+                                       vector<double> &next_map_waypoints_x,
+                                       vector<double> &next_map_waypoints_y);
 
 void gen_traj_from_jmt(const car_state &cstate,
                        const int state_number,
@@ -687,6 +687,8 @@ void gen_traj_from_spline(const car_state &cstate,
                           const vector<double> &map_waypoints_s,
                           const vector<double> &map_waypoints_dx,
                           const vector<double> &map_waypoints_dy,
+                          double endpoint_s,
+                          double endpoint_d,
                           vector<double> &next_x_vals,
                           vector<double> &next_y_vals,
                           int total_future_points,
@@ -766,16 +768,29 @@ void gen_traj_from_spline(const car_state &cstate,
   next_map_waypoints_y.push_back(before_next_path_start_y);
   next_map_waypoints_y.push_back(next_path_start_y);
 
-  gen_next_map_waypoints(map_waypoints_x,
-                         map_waypoints_y,
-                         map_waypoints_dx,
-                         map_waypoints_dy,
-                         next_lane_number,
-                         num_next_index,
-                         lane_width,
-                         closest_index,
-                         next_map_waypoints_x,
-                         next_map_waypoints_y);
+  vector<double> sd = getFrenet(ref_x, ref_y, ref_yaw, map_waypoints_x, map_waypoints_y);
+
+  for (int i = 0; i < 3; i++) {
+    vector<double> xy = getXY(sd[0] + 30 * (i + 1), (next_lane_number + 0.5) * lane_width,
+                              map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+    next_map_waypoints_x.push_back(xy[0]);
+    next_map_waypoints_y.push_back(xy[1]);
+
+  }
+
+  /*
+  gen_next_map_waypoints_by_wpindex(map_waypoints_x,
+                                    map_waypoints_y,
+                                    map_waypoints_dx,
+                                    map_waypoints_dy,
+                                    next_lane_number,
+                                    num_next_index,
+                                    lane_width,
+                                    closest_index,
+                                    next_map_waypoints_x,
+                                    next_map_waypoints_y);
+                                    */
 
   map_to_car_coords_array(cstate, next_map_waypoints_x, next_map_waypoints_y);
 
@@ -821,16 +836,16 @@ void gen_traj_from_spline(const car_state &cstate,
   vector<double>().swap(next_map_waypoints_y);
 
 }
-void gen_next_map_waypoints(const vector<double> &map_waypoints_x,
-                            const vector<double> &map_waypoints_y,
-                            const vector<double> &map_waypoints_dx,
-                            const vector<double> &map_waypoints_dy,
-                            int next_lane_number,
-                            int num_next_index,
-                            const int lane_width,
-                            int closest_index,
-                            vector<double> &next_map_waypoints_x,
-                            vector<double> &next_map_waypoints_y) {// Construct the array for spline fitting
+void gen_next_map_waypoints_by_wpindex(const vector<double> &map_waypoints_x,
+                                       const vector<double> &map_waypoints_y,
+                                       const vector<double> &map_waypoints_dx,
+                                       const vector<double> &map_waypoints_dy,
+                                       int next_lane_number,
+                                       int num_next_index,
+                                       const int lane_width,
+                                       int closest_index,
+                                       vector<double> &next_map_waypoints_x,
+                                       vector<double> &next_map_waypoints_y) {// Construct the array for spline fitting
   for (int i = 0; i < num_next_index; i++) {
     int waypoints_index = (closest_index + i) % map_waypoints_x.size();
 
@@ -965,6 +980,7 @@ gen_next_traj(const car_state &cstate,
   //TODO magic number 50 and 0.02
   cout << "recommended next state:" << state_to_try[min_state_index] << endl;
 
+  /*
   if (previous_path_x.size() < 50) {
     //Only genereate the trajectory points when not enough trajectory points in the buffer
     gen_traj_from_jmt(cstate,
@@ -985,23 +1001,25 @@ gen_next_traj(const car_state &cstate,
     next_x_vals = previous_path_x;
     next_y_vals = previous_path_y;
   }
-
-/*
-  gen_traj_from_spline(cstate,
-                    state_to_try[min_state_index],
-                    previous_path_x,
-                    previous_path_y,
-                    sensor_fusion,
-                    map_waypoints_x,
-                    map_waypoints_y,
-                    map_waypoints_s,
-                    map_waypoints_dx,
-                    map_waypoints_dy,
-                    next_x_vals,
-                    next_y_vals,
-                    50,
-                    0.02);
 */
+
+  gen_traj_from_spline(cstate,
+                       state_to_try[min_state_index],
+                       previous_path_x,
+                       previous_path_y,
+                       sensor_fusion,
+                       map_waypoints_x,
+                       map_waypoints_y,
+                       map_waypoints_s,
+                       map_waypoints_dx,
+                       map_waypoints_dy,
+                       end_path_s,
+                       end_path_d,
+                       next_x_vals,
+                       next_y_vals,
+                       50,
+                       0.02);
+
 }
 /// Evaluate the cost of the next possible states
 /// \param cstate
@@ -1074,7 +1092,14 @@ vector<double> eval_state_cost(const car_state &cstate,
                                          lane_width);
 
 //cout << "time to collide of state" << state_to_try[i] << ":" << next_coll_time << endl;
-    state_cost[i] += (1 / next_coll_time + 0.05 * (20 - next_car_state.car_speed));
+
+
+    double coll_inv = 1 / next_coll_time;
+    if (i != 0 || state_to_try[i] != stopping) {
+      coll_inv += 0.2;
+    }
+
+    state_cost[i] += (coll_inv + 0.05 * (20 - next_car_state.car_speed));
 
   }
   return state_cost;
