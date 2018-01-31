@@ -5,7 +5,7 @@
 ## Aim of this project
 
 The goal of this project is to run the car in the following manner:
-- Keep the speed as close to 50 MPH as possilbe but not to exceed it.
+- Keep the speed as close to 50 MPH as possible but not to exceed it.
 - The car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 50 m/s^3.
 - Change the lane when appropriate.
 - Avoid accidents.
@@ -24,8 +24,8 @@ My path planning algorithm is based on the [finite-state machine](https://en.wik
 - Staying on the left lane
 - Stopping
 
-In the first three states. the car will try to reach the desired speed (44 MPH or 20 m/s). Therefore, this implementation does not have explicit state for acceleration process.
-At an instant, the car reads the car's localization and the sensor fusion data to determine whether is should staying on its lane, switch to a adjacent lane, or reduce its speed.
+In the first three states. the car will try to reach the desired speed (44 MPH or 20 m/s). Therefore, this implementation does not have an explicit state for acceleration process.
+At any instant, the car reads the car's localization and the sensor fusion data to determine whether it should stay on its lane, switch to a adjacent lane, or reduce its speed.
 
 
 ## Evaluate the cost function
@@ -62,18 +62,18 @@ The fitting comprises of the following steps:
 - Convert the trajectory from car reference coordinates back to global coordinates.
 
 Note that acceleration is included in the generation of trajectory.
-For each interval, the instaneous speed of the car is recalculated with the following iterative equations:
+For each interval, the instantaneous speed of the car is recalculated with the following iterative equations:
 
 ![iterative equation](./figures/eqn_set1.png)
 
-where v_{N} and v_{N+1} are the instaneous speed of the car at the N-th and (N+1)-th step, repectively, whereas x_{N+1} is the car position and the N-th step.
+where v_{N} and v_{N+1} are the instantaneous speed of the car at the N-th and (N+1)-th step, respectively, whereas x_{N+1} is the car position and the N-th step.
 
 
 ## Thoughts on improvements
 
 - Evalulate the states using the [Markov decision process](https://en.wikipedia.org/wiki/Markov_decision_process): the current implementation chooses the next state with the lowest cost. This is essentially a Greedy approach. It would be interesting to search the deeper states to make the car more intelligent.
 
-- My current model assumes that the neighboring cars move with constant speed. It would be more precise to calulate the car posistion of the car probabilistically instead of deterministically.
+- My current model assumes that the neighboring cars move with constant speed. It would be more precise to calculate the car position of the car probabilistically rather than deterministically.
 
 
 
